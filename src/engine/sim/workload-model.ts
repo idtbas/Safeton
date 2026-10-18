@@ -47,7 +47,9 @@ function peakTflops(cfg: ResolvedNodeConfig, precision: Precision): number {
 const nvlinkUniBytesPerS = (cfg: ResolvedNodeConfig) =>
   (cfg.gpu.interconnect.bandwidthGBs.v / 2) * 1e9 * NVLINK_BUS_EFFICIENCY;
 const nicBytesPerS = (cfg: ResolvedNodeConfig, linkGbps: number) =>
-  (Math.min(cfg.computeNic.portSpeedGbps, linkGbps || cfg.computeNic.portSpeedGbps) / 8) * 1e9 * NIC_BUS_EFFICIENCY;
+  (Math.min(cfg.computeNic.portSpeedGbps, linkGbps || cfg.computeNic.portSpeedGbps) / 8) *
+  1e9 *
+  NIC_BUS_EFFICIENCY;
 
 interface TrainingCandidate {
   tp: number;
@@ -55,7 +57,13 @@ interface TrainingCandidate {
   recompute: 'selective' | 'full';
 }
 
-function trainingMemory(m: ModelArchSpec, spec: TrainingJobSpec, c: TrainingCandidate, dp: number, micro: number) {
+function trainingMemory(
+  m: ModelArchSpec,
+  spec: TrainingJobSpec,
+  c: TrainingCandidate,
+  dp: number,
+  micro: number,
+) {
   const params = m.params.v;
   const paramsGpu = params / (c.tp * c.pp);
   const layersPerStage = Math.ceil(m.layers / c.pp);
@@ -122,7 +130,8 @@ export function trainingStep(
   const pipelineS = computeS * plan.stageImbalance * (1 + plan.bubbleFraction);
 
   const nvl = nvlinkUniBytesPerS(cfg);
-  const nic = (nicBytesPerS(cfg, linkGbps) * Math.max(0.05, dyn.nicAvailability)) / Math.max(1, dyn.congestion);
+  const nic =
+    (nicBytesPerS(cfg, linkGbps) * Math.max(0.05, dyn.nicAvailability)) / Math.max(1, dyn.congestion);
 
   const tpOverNvlink = plan.tp <= cfg.scaleUpDomainGpus;
   const exposedTpS = TP_EXPOSED * (plan.tpBytesPerGpu / (tpOverNvlink ? nvl : nic));
@@ -149,8 +158,10 @@ export function trainingStep(
     exposedDpS,
     commExposedFraction: (exposedTpS + exposedPpS + exposedDpS) / stepS,
     computeFraction: computeS / stepS,
-    nicBytesPerGpu: dpNicBytes + (ppInDomain ? 0 : plan.ppBytesPerGpu) + (tpOverNvlink ? 0 : plan.tpBytesPerGpu),
-    nvlinkBytesPerGpu: (tpOverNvlink ? plan.tpBytesPerGpu : 0) + dpNvlBytes + (ppInDomain ? plan.ppBytesPerGpu : 0),
+    nicBytesPerGpu:
+      dpNicBytes + (ppInDomain ? 0 : plan.ppBytesPerGpu) + (tpOverNvlink ? 0 : plan.tpBytesPerGpu),
+    nvlinkBytesPerGpu:
+      (tpOverNvlink ? plan.tpBytesPerGpu : 0) + dpNvlBytes + (ppInDomain ? plan.ppBytesPerGpu : 0),
     mfu: plan.modelFlopsPerStep / (stepS * gpus * precisionPeak),
   };
 }
@@ -217,6 +228,7 @@ function buildTrainingPlan(
     nodes,
     nominalStepS: 0,
     nominalMfu: 0,
+    notes: [],
   };
   const step = trainingStep(plan, cfg, spec.precision, linkGbps, {
     clock: 1,
@@ -236,7 +248,11 @@ export function domainSharing(plan: Pick<TrainingPlan, 'tp' | 'pp' | 'dp'>, cfg:
 
 const POW2 = [1, 2, 4, 8, 16, 32, 64];
 
-export function planTraining(spec: TrainingJobSpec, cfg: ResolvedNodeConfig, linkGbps: number): PlanResult<TrainingPlan> {
+export function planTraining(
+  spec: TrainingJobSpec,
+  cfg: ResolvedNodeConfig,
+  linkGbps: number,
+): PlanResult<TrainingPlan> {
   let m: ModelArchSpec;
   try {
     m = model(spec.modelId);
@@ -251,10 +267,18 @@ export function planTraining(spec: TrainingJobSpec, cfg: ResolvedNodeConfig, lin
     };
   }
   if (spec.precision === 'fp8' && !cfg.gpu.peak.fp8) {
-    return { ok: false, code: 'JOB_PRECISION_UNSUPPORTED', message: `${cfg.gpu.name} has no FP8 tensor cores` };
+    return {
+      ok: false,
+      code: 'JOB_PRECISION_UNSUPPORTED',
+      message: `${cfg.gpu.name} has no FP8 tensor cores`,
+    };
   }
   if (spec.seqLen < 128 || spec.seqLen > m.maxContext) {
-    return { ok: false, code: 'JOB_SEQLEN_RANGE', message: `Sequence length must be 128–${m.maxContext} for ${m.name}` };
+    return {
+      ok: false,
+      code: 'JOB_SEQLEN_RANGE',
+      message: `Sequence length must be 128–${m.maxContext} for ${m.name}`,
+    };
   }
   if (!Number.isInteger(spec.globalBatch) || spec.globalBatch < 1) {
     return { ok: false, code: 'JOB_BATCH_INVALID', message: 'Global batch must be a positive integer' };
@@ -304,6 +328,17 @@ export function planTraining(spec: TrainingJobSpec, cfg: ResolvedNodeConfig, lin
       message: `CUDA out of memory: best layout needs ${smallestMemory.toFixed(1)} GB per GPU, ${cfg.gpu.name} has ${cfg.gpu.memory.capacityGB.v} GB. Add GPUs, reduce sequence length or enable full recompute`,
     };
   }
+  if (best.bubbleFraction > 0.25) {
+    best.notes.push(
+      `Pipeline bubble adds ${Math.round(best.bubbleFraction * 100)} %: only ${best.microbatches} micro-batch(es) per data-parallel rank. Raise the global batch to ≥ ${best.dp * best.pp * 4} sequences or use fewer GPUs`,
+    );
+  }
+  if (best.memoryGB.total > best.hbmGB * 0.9)
+    best.notes.push('HBM headroom below 10 % — fragmentation spikes may cause OOM');
+  if (best.nominalMfu < 0.25)
+    best.notes.push(
+      `Low efficiency (${Math.round(best.nominalMfu * 100)} % MFU) for this scale and batch size`,
+    );
   return { ok: true, plan: best };
 }
 
@@ -326,7 +361,11 @@ export interface DecodeModel {
   c: number;
 }
 
-export function decodeModel(plan: InferencePlan, cfg: ResolvedNodeConfig, spec: InferenceJobSpec): DecodeModel {
+export function decodeModel(
+  plan: InferencePlan,
+  cfg: ResolvedNodeConfig,
+  spec: InferenceJobSpec,
+): DecodeModel {
   const m = model(spec.modelId);
   const bw = cfg.gpu.memory.bandwidthGBs.v * 1e9 * cfg.gpu.hbmEfficiency.v;
   const ctx = spec.avgInputTokens + spec.avgOutputTokens / 2;
@@ -361,10 +400,18 @@ export function planInference(spec: InferenceJobSpec, cfg: ResolvedNodeConfig): 
     return { ok: false, code: 'JOB_REPLICAS_INVALID', message: 'Replica count must be a positive integer' };
   }
   if (spec.precision === 'fp8' && !cfg.gpu.peak.fp8) {
-    return { ok: false, code: 'JOB_PRECISION_UNSUPPORTED', message: `${cfg.gpu.name} has no FP8 tensor cores` };
+    return {
+      ok: false,
+      code: 'JOB_PRECISION_UNSUPPORTED',
+      message: `${cfg.gpu.name} has no FP8 tensor cores`,
+    };
   }
   if (spec.avgInputTokens + spec.avgOutputTokens > m.maxContext) {
-    return { ok: false, code: 'JOB_CONTEXT_RANGE', message: `Input + output tokens exceed the ${m.maxContext}-token context of ${m.name}` };
+    return {
+      ok: false,
+      code: 'JOB_CONTEXT_RANGE',
+      message: `Input + output tokens exceed the ${m.maxContext}-token context of ${m.name}`,
+    };
   }
   const bytesPerParam = spec.precision === 'fp8' ? 1 : 2;
   const weightsGBPerGpu = (m.params.v * bytesPerParam) / spec.tp / 1e9;
@@ -385,7 +432,8 @@ export function planInference(spec: InferenceJobSpec, cfg: ResolvedNodeConfig): 
   const maxConcurrentPerReplica = Math.min(MAX_BATCH, Math.floor(kvCapacityTokensPerReplica / seqTokens));
   const replicasPerNode = cfg.gpuCount / spec.tp;
   const peak = peakTflops(cfg, spec.precision) * 1e12;
-  const prefillSecondsPerRequest = (2 * m.activeParams.v * spec.avgInputTokens) / (spec.tp * peak * PREFILL_EFFICIENCY);
+  const prefillSecondsPerRequest =
+    (2 * m.activeParams.v * spec.avgInputTokens) / (spec.tp * peak * PREFILL_EFFICIENCY);
   const plan: InferencePlan = {
     tp: spec.tp,
     replicas: spec.replicas,
@@ -401,7 +449,8 @@ export function planInference(spec: InferenceJobSpec, cfg: ResolvedNodeConfig): 
   };
   const d = decodeModel(plan, cfg, spec);
   plan.minDecodeStepS = decodeStepS(d, 1);
-  plan.maxThroughputTokS = (maxConcurrentPerReplica / decodeStepS(d, maxConcurrentPerReplica)) * spec.replicas;
+  plan.maxThroughputTokS =
+    (maxConcurrentPerReplica / decodeStepS(d, maxConcurrentPerReplica)) * spec.replicas;
   return { ok: true, plan };
 }
 
@@ -490,7 +539,8 @@ export function inferenceTick(
   const util = busy ? Math.min(0.98, 0.35 + 0.6 * Math.min(1, batch / 16) + prefillBusy) : 0;
   const intensity = 0.9 * prefillBusy + (0.42 + 0.33 * Math.sqrt(Math.min(1, batch / Math.max(1, maxB)))) * f;
   const ctx = spec.avgInputTokens + out / 2;
-  const memUsedGB = plan.weightsGBPerGpu + (batch * ctx * plan.kvBytesPerTokenPerGpu) / 1e9 + INFERENCE_OVERHEAD_GB;
+  const memUsedGB =
+    plan.weightsGBPerGpu + (batch * ctx * plan.kvBytesPerTokenPerGpu) / 1e9 + INFERENCE_OVERHEAD_GB;
   return {
     servedRps: served * healthyReplicas,
     queue: newQ * healthyReplicas,

@@ -51,7 +51,13 @@ export const SEVERITY_TONE: Record<Severity, Exclude<Tone, 'accent'>> = {
 export async function run(cmd: Parameters<typeof command>[0], announce = false): Promise<CommandResult> {
   const result = await command(cmd);
   const push = useNotificationStore.getState().push;
-  if (!result.ok) push({ severity: 'warning', title: `Command rejected: ${cmd.type}`, body: `${result.error.code} — ${result.error.message}`, source: 'operator' });
+  if (!result.ok)
+    push({
+      severity: 'warning',
+      title: `Command rejected: ${cmd.type}`,
+      body: `${result.error.code} — ${result.error.message}`,
+      source: 'operator',
+    });
   else if (announce) push({ severity: 'notice', title: cmd.type, body: result.message, source: 'operator' });
   return result;
 }

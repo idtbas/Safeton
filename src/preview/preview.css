@@ -216,6 +216,14 @@
   background: var(--bg-2);
 }
 
+.pv-plan__note {
+  padding: 6px 8px;
+  border-left: 2px solid var(--status-warning);
+  background: var(--status-warning-weak);
+  font-size: var(--fs-xs);
+  color: var(--text-1);
+}
+
 .pv-plan--error {
   border-color: rgb(208 59 59 / 0.35);
   font-size: var(--fs-sm);

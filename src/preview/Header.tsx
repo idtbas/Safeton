@@ -13,8 +13,21 @@ export function Header({ route }: { route: string }) {
     <header className="pv-header">
       <div className="pv-brand">
         <svg width="20" height="20" viewBox="0 0 32 32" aria-hidden>
-          <path d="M8 11.5 16 7l8 4.5v9L16 25l-8-4.5z" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" />
-          <path d="M8 11.5 16 16l8-4.5M16 16v9" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" opacity=".55" />
+          <path
+            d="M8 11.5 16 7l8 4.5v9L16 25l-8-4.5z"
+            fill="none"
+            stroke="var(--accent)"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M8 11.5 16 16l8-4.5M16 16v9"
+            fill="none"
+            stroke="var(--accent)"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            opacity=".55"
+          />
         </svg>
         <span className="pv-brand__name">SAFETON</span>
         <span className="pv-brand__tag">Engineering Preview</span>
@@ -42,23 +55,31 @@ export function Header({ route }: { route: string }) {
           <Tooltip
             content={
               <span className="mono">
-                tick avg {fmt.formatNumber(perf.tickMsAvg, 2, 2)} ms · p95 {fmt.formatNumber(perf.tickMsP95, 2, 2)} ms
+                tick avg {fmt.formatNumber(perf.tickMsAvg, 2, 2)} ms · p95{' '}
+                {fmt.formatNumber(perf.tickMsP95, 2, 2)} ms
                 <br />
                 {fmt.formatNumber(perf.ticksPerSecond, 1, 1)} ticks/s · {snap!.timeScale}× requested
               </span>
             }
           >
             <span className="pv-header__item mono" tabIndex={0}>
-              <Activity size={13} /> {snap!.running ? `${fmt.formatNumber(perf.simSecondsPerSecond, 1, 1)}×` : 'paused'} · {fmt.formatNumber(perf.tickMsAvg, 2, 2)} ms
+              <Activity size={13} />{' '}
+              {snap!.running ? `${fmt.formatNumber(perf.simSecondsPerSecond, 1, 1)}×` : 'paused'} ·{' '}
+              {fmt.formatNumber(perf.tickMsAvg, 2, 2)} ms
             </span>
           </Tooltip>
         )}
-        {perf?.lagging && <Badge tone="warning" dot>Lagging</Badge>}
+        {perf?.lagging && (
+          <Badge tone="warning" dot>
+            Lagging
+          </Badge>
+        )}
         <span className="pv-header__item" title="Simulation engine thread">
           <Cpu size={13} /> {mode === 'worker' ? 'Worker' : mode === 'in-process' ? 'In-process' : '—'}
         </span>
         <span className="pv-header__item" title="Persistent storage backend">
-          <HardDrive size={13} /> {storage === 'indexeddb' ? 'IndexedDB' : storage === 'memory' ? 'Volatile' : '—'}
+          <HardDrive size={13} />{' '}
+          {storage === 'indexeddb' ? 'IndexedDB' : storage === 'memory' ? 'Volatile' : '—'}
         </span>
         <span className="pv-header__item sf-muted mono">
           v{APP_VERSION} · {typeof __GIT_SHA__ !== 'undefined' ? __GIT_SHA__ : 'dev'}

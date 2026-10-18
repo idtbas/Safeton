@@ -1,11 +1,27 @@
-import { cloneElement, isValidElement, useId, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import {
+  cloneElement,
+  isValidElement,
+  useId,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 /**
  * Hover / focus tooltip. Positions above the trigger, flips below near the top edge and
  * clamps horizontally to the viewport.
  */
-export function Tooltip({ content, children, delay = 350 }: { content: ReactNode; children: ReactElement; delay?: number }) {
+export function Tooltip({
+  content,
+  children,
+  delay = 350,
+}: {
+  content: ReactNode;
+  children: ReactElement;
+  delay?: number;
+}) {
   const [pos, setPos] = useState<{ x: number; y: number; below: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const id = useId();
@@ -15,7 +31,11 @@ export function Tooltip({ content, children, delay = 350 }: { content: ReactNode
     timer.current = setTimeout(() => {
       const r = el.getBoundingClientRect();
       const below = r.top < 60;
-      setPos({ x: Math.min(window.innerWidth - 170, Math.max(10, r.left + r.width / 2)), y: below ? r.bottom + 8 : r.top - 8, below });
+      setPos({
+        x: Math.min(window.innerWidth - 170, Math.max(10, r.left + r.width / 2)),
+        y: below ? r.bottom + 8 : r.top - 8,
+        below,
+      });
     }, delay);
   };
   const hide = () => {

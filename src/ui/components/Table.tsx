@@ -84,8 +84,18 @@ export function Table<T>({
   };
 
   return (
-    <div className="sf-table" style={{ ['--cols' as string]: template }} role="table" aria-label={label} aria-rowcount={total}>
-      <div className="sf-table__scroll" ref={scrollRef} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
+    <div
+      className="sf-table"
+      style={{ ['--cols' as string]: template }}
+      role="table"
+      aria-label={label}
+      aria-rowcount={total}
+    >
+      <div
+        className="sf-table__scroll"
+        ref={scrollRef}
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      >
         <div className="sf-table__head" role="row">
           {columns.map((c) => {
             const active = sort?.id === c.id;

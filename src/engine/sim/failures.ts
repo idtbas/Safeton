@@ -151,14 +151,20 @@ export function applyGpuFault(sim: Simulation, gi: number, xidIn?: number): void
   if (fatalToJob && jobId >= 0) {
     const job = sim.jobs.get(jobId);
     if (job && job.spec.kind === 'training') {
-      if (g.health[gi]! >= GpuHealth.ResetRequired) sim.onNodeLostByJob(jobId, ni, `${gpuLabel(sim, gi)} Xid ${xid}`);
+      if (g.health[gi]! >= GpuHealth.ResetRequired)
+        sim.onNodeLostByJob(jobId, ni, `${gpuLabel(sim, gi)} Xid ${xid}`);
       else crashTrainingJob(sim, job, `${node.hostname} ${gpuLabel(sim, gi)} Xid ${xid}`);
     } else if (job && g.health[gi]! >= GpuHealth.ResetRequired) {
       sim.onNodeLostByJob(jobId, ni, `${gpuLabel(sim, gi)} Xid ${xid}`);
     }
   }
   if (sim.autoRemediation && g.health[gi]! >= GpuHealth.ResetRequired) {
-    sim.openTicket('node', ni, hardware ? MTTR_HOURS.hardware : MTTR_HOURS.reset, hardware ? `Replace ${gpuLabel(sim, gi)} (RMA)` : 'Drain and reboot (GPU reset)');
+    sim.openTicket(
+      'node',
+      ni,
+      hardware ? MTTR_HOURS.hardware : MTTR_HOURS.reset,
+      hardware ? `Replace ${gpuLabel(sim, gi)} (RMA)` : 'Drain and reboot (GPU reset)',
+    );
   }
 }
 
@@ -175,9 +181,21 @@ export function applyPsuFault(sim: Simulation, i: number): void {
   if (active <= 0) {
     sim.failNode(i, `PSU${slot} failed — no power supplies remaining, node lost power`, true, 'power');
   } else if (active < cfg.psuRequired) {
-    sim.emit('critical', 'node', node.hostname, 'PSU_POWER_BRAKE', `PSU${slot} failure: ${active}/${cfg.psuCount} PSUs cannot carry peak load — GPU power brake asserted (HW slowdown)`);
+    sim.emit(
+      'critical',
+      'node',
+      node.hostname,
+      'PSU_POWER_BRAKE',
+      `PSU${slot} failure: ${active}/${cfg.psuCount} PSUs cannot carry peak load — GPU power brake asserted (HW slowdown)`,
+    );
   } else {
-    sim.emit('warning', 'node', node.hostname, 'PSU_FAILED', `PSU${slot} failure detected (output fault) — redundancy reduced to N+${active - cfg.psuRequired}`);
+    sim.emit(
+      'warning',
+      'node',
+      node.hostname,
+      'PSU_FAILED',
+      `PSU${slot} failure detected (output fault) — redundancy reduced to N+${active - cfg.psuRequired}`,
+    );
   }
   sim.refreshNodeFaults(i);
   if (sim.autoRemediation) sim.openTicket('psu', i, MTTR_HOURS.hotSwap, 'Hot-swap power supply');
@@ -188,7 +206,13 @@ export function applyFanFault(sim: Simulation, i: number): void {
   const node = sim.topo.nodes[i]!;
   if (n.fanFailed[i]! >= node.cfg.fanCount) return;
   n.fanFailed[i] = n.fanFailed[i]! + 1;
-  sim.emit('warning', 'node', node.hostname, 'FAN_FAILED', `Fan ${n.fanFailed[i]} failure: tachometer reads 0 RPM, remaining fans compensating`);
+  sim.emit(
+    'warning',
+    'node',
+    node.hostname,
+    'FAN_FAILED',
+    `Fan ${n.fanFailed[i]} failure: tachometer reads 0 RPM, remaining fans compensating`,
+  );
   sim.refreshNodeFaults(i);
   if (sim.autoRemediation) sim.openTicket('fan', i, MTTR_HOURS.hotSwap, 'Hot-swap fan module');
 }
@@ -199,31 +223,60 @@ export function applyNicFault(sim: Simulation, i: number, rail: number, permanen
   const r = Math.max(0, Math.min(node.cfg.rails - 1, rail));
   n.nicDownMask[i] = n.nicDownMask[i]! | (1 << r);
   if (permanent) {
-    sim.emit('error', 'node', node.hostname, 'NIC_FAILED', `mlx5_core: rail ${r} adapter fatal error (health compromised, firmware assert) — port down`);
+    sim.emit(
+      'error',
+      'node',
+      node.hostname,
+      'NIC_FAILED',
+      `mlx5_core: rail ${r} adapter fatal error (health compromised, firmware assert) — port down`,
+    );
     if (sim.autoRemediation) sim.openTicket('nic', i, MTTR_HOURS.hardware, `Replace rail ${r} adapter`);
   } else {
     n.nicFlapTimer[i] = sim.rng.range(20, 180);
-    sim.emit('warning', 'node', node.hostname, 'NIC_LINK_FLAP', `ib${r}: link state DOWN (symbol errors on optical transceiver) — link flap`);
+    sim.emit(
+      'warning',
+      'node',
+      node.hostname,
+      'NIC_LINK_FLAP',
+      `ib${r}: link state DOWN (symbol errors on optical transceiver) — link flap`,
+    );
   }
   sim.refreshNodeFaults(i);
   const jobId = n.job[i]!;
   if (jobId >= 0) {
     const job = sim.jobs.get(jobId);
-    if (job && job.spec.kind === 'training') crashTrainingJob(sim, job, `${node.hostname} rail ${r}: NCCL network error (ibv_poll_cq: transport retry counter exceeded)`);
+    if (job && job.spec.kind === 'training')
+      crashTrainingJob(
+        sim,
+        job,
+        `${node.hostname} rail ${r}: NCCL network error (ibv_poll_cq: transport retry counter exceeded)`,
+      );
   }
 }
 
 function applyDimmFault(sim: Simulation, i: number): void {
   const node = sim.topo.nodes[i]!;
   sim.rt.nodes.dimmFault[i] = 1;
-  sim.emit('error', 'node', node.hostname, 'MCE_UNCORRECTABLE', 'mce: [Hardware Error]: Machine check: uncorrectable memory error on DIMM — kernel panic');
+  sim.emit(
+    'error',
+    'node',
+    node.hostname,
+    'MCE_UNCORRECTABLE',
+    'mce: [Hardware Error]: Machine check: uncorrectable memory error on DIMM — kernel panic',
+  );
   sim.failNode(i, 'Kernel panic after uncorrectable machine check (DIMM)', false, 'hardware');
 }
 
 function applyNvmeFault(sim: Simulation, i: number): void {
   const node = sim.topo.nodes[i]!;
   sim.rt.nodes.nvmeFault[i] = 1;
-  sim.emit('warning', 'node', node.hostname, 'NVME_FAILED', 'nvme3: controller is down; will reset: CSTS=0x3 — device removed from RAID-0 scratch volume');
+  sim.emit(
+    'warning',
+    'node',
+    node.hostname,
+    'NVME_FAILED',
+    'nvme3: controller is down; will reset: CSTS=0x3 — device removed from RAID-0 scratch volume',
+  );
   sim.refreshNodeFaults(i);
   if (sim.autoRemediation) sim.openTicket('nvme', i, MTTR_HOURS.hotSwap, 'Hot-swap NVMe drive');
 }
@@ -231,7 +284,13 @@ function applyNvmeFault(sim: Simulation, i: number): void {
 function applyNvSwitchFault(sim: Simulation, i: number): void {
   const node = sim.topo.nodes[i]!;
   sim.rt.nodes.nvswitchFault[i] = 1;
-  sim.emit('critical', 'node', node.hostname, 'NVSWITCH_FATAL', 'nvidia-fabricmanager: NVSwitch fatal error (SXid 12028) — NVLink fabric degraded, GPUs isolated');
+  sim.emit(
+    'critical',
+    'node',
+    node.hostname,
+    'NVSWITCH_FATAL',
+    'nvidia-fabricmanager: NVSwitch fatal error (SXid 12028) — NVLink fabric degraded, GPUs isolated',
+  );
   sim.refreshNodeFaults(i);
   const job = sim.rt.nodes.job[i]!;
   if (job >= 0) sim.onNodeLostByJob(job, i, 'NVSwitch fatal error');
@@ -285,9 +344,11 @@ export function applySwitchFault(sim: Simulation, s: number, adminDown = false):
   }
   for (const id of [...affectedJobs].sort((a, b) => a - b)) {
     const job = sim.jobs.get(id);
-    if (job && job.spec.kind === 'training') crashTrainingJob(sim, job, `${sw.name} down: NCCL network error (remote access error)`);
+    if (job && job.spec.kind === 'training')
+      crashTrainingJob(sim, job, `${sw.name} down: NCCL network error (remote access error)`);
   }
-  if (!adminDown && sim.autoRemediation) sim.openTicket('switch', s, MTTR_HOURS.switch, `Replace ${tier} switch ${sw.name}`);
+  if (!adminDown && sim.autoRemediation)
+    sim.openTicket('switch', s, MTTR_HOURS.switch, `Replace ${tier} switch ${sw.name}`);
 }
 
 export function restoreSwitch(sim: Simulation, s: number, admin: boolean): void {
@@ -312,13 +373,27 @@ function applyCoolingUnitFault(sim: Simulation, hallIdx: number, unit: 'air' | '
   if (unit === 'air') {
     if (rt.airUnitsFailed >= hall.spec.air.count) return false;
     rt.airUnitsFailed++;
-    sim.emit('error', 'hall', hall.id, 'CRAH_FAILED', `${hall.name}: ${hall.airUnit.name} #${rt.airUnitsFailed} tripped (fan motor overload) — ${hall.spec.air.count - rt.airUnitsFailed}/${hall.spec.air.count} units running`);
-    if (sim.autoRemediation) sim.openTicket('air-unit', hallIdx, MTTR_HOURS.airUnit, `Repair air handler in ${hall.name}`);
+    sim.emit(
+      'error',
+      'hall',
+      hall.id,
+      'CRAH_FAILED',
+      `${hall.name}: ${hall.airUnit.name} #${rt.airUnitsFailed} tripped (fan motor overload) — ${hall.spec.air.count - rt.airUnitsFailed}/${hall.spec.air.count} units running`,
+    );
+    if (sim.autoRemediation)
+      sim.openTicket('air-unit', hallIdx, MTTR_HOURS.airUnit, `Repair air handler in ${hall.name}`);
   } else {
     if (!hall.liquidUnit || !hall.spec.liquid || rt.liquidUnitsFailed >= hall.spec.liquid.count) return false;
     rt.liquidUnitsFailed++;
-    sim.emit('error', 'hall', hall.id, 'CDU_FAILED', `${hall.name}: ${hall.liquidUnit.name} #${rt.liquidUnitsFailed} pump failure — ${hall.spec.liquid.count - rt.liquidUnitsFailed}/${hall.spec.liquid.count} CDUs running`);
-    if (sim.autoRemediation) sim.openTicket('liquid-unit', hallIdx, MTTR_HOURS.liquidUnit, `Repair CDU in ${hall.name}`);
+    sim.emit(
+      'error',
+      'hall',
+      hall.id,
+      'CDU_FAILED',
+      `${hall.name}: ${hall.liquidUnit.name} #${rt.liquidUnitsFailed} pump failure — ${hall.spec.liquid.count - rt.liquidUnitsFailed}/${hall.spec.liquid.count} CDUs running`,
+    );
+    if (sim.autoRemediation)
+      sim.openTicket('liquid-unit', hallIdx, MTTR_HOURS.liquidUnit, `Repair CDU in ${hall.name}`);
   }
   return true;
 }
@@ -327,7 +402,13 @@ function applyChillerFault(sim: Simulation): boolean {
   const plant = sim.topo.spec.site.plant;
   if (sim.plant.chillersFailed >= plant.chillers) return false;
   sim.plant.chillersFailed++;
-  sim.emit('error', 'facility', 'plant', 'CHILLER_FAILED', `Chiller ${sim.plant.chillersFailed} tripped on high condenser pressure — ${plant.chillers - sim.plant.chillersFailed}/${plant.chillers} chillers available`);
+  sim.emit(
+    'error',
+    'facility',
+    'plant',
+    'CHILLER_FAILED',
+    `Chiller ${sim.plant.chillersFailed} tripped on high condenser pressure — ${plant.chillers - sim.plant.chillersFailed}/${plant.chillers} chillers available`,
+  );
   if (sim.autoRemediation) sim.openTicket('chiller', 0, MTTR_HOURS.chiller, 'Chiller service call');
   return true;
 }
@@ -369,7 +450,9 @@ export function processFailures(sim: Simulation): void {
   let wNvsw = 0;
   const eligible = (i: number) => {
     const s = n.state[i];
-    return n.powered[i] === 1 && (s === NodeState.Online || s === NodeState.Degraded || s === NodeState.Draining);
+    return (
+      n.powered[i] === 1 && (s === NodeState.Online || s === NodeState.Degraded || s === NodeState.Draining)
+    );
   };
   for (let i = 0; i < sim.topo.nodes.length; i++) {
     if (!eligible(i)) continue;
@@ -377,7 +460,7 @@ export function processFailures(sim: Simulation): void {
     wPsu += (c.psuCount - n.psuFailed[i]!) * c.psu.afr.v;
     wFan += (c.fanCount - n.fanFailed[i]!) * FAN_AFR;
     wNic += c.rails * (c.computeNic.afr.v + LINK_FLAP_AFR);
-    wDimm += (c.dimm ? c.dimmCount * c.dimm.afr.v : c.cpuCount * 0.004);
+    wDimm += c.dimm ? c.dimmCount * c.dimm.afr.v : c.cpuCount * 0.004;
     wNvme += c.dataDriveCount * c.dataDrive.afr.v;
     wNode += CRASH_NODE_AFR + c.cpuCount * c.cpu.afr.v;
     wNvsw += c.nvswitch ? c.nvswitchCount * c.nvswitch.afr.v : 0;
@@ -397,8 +480,16 @@ export function processFailures(sim: Simulation): void {
     }
   };
   const nodeCfg = (i: number) => sim.topo.nodes[i]!.cfg;
-  sample(wPsu, (i) => applyPsuFault(sim, i), (i) => (nodeCfg(i).psuCount - n.psuFailed[i]!) * nodeCfg(i).psu.afr.v);
-  sample(wFan, (i) => applyFanFault(sim, i), (i) => (nodeCfg(i).fanCount - n.fanFailed[i]!) * FAN_AFR);
+  sample(
+    wPsu,
+    (i) => applyPsuFault(sim, i),
+    (i) => (nodeCfg(i).psuCount - n.psuFailed[i]!) * nodeCfg(i).psu.afr.v,
+  );
+  sample(
+    wFan,
+    (i) => applyFanFault(sim, i),
+    (i) => (nodeCfg(i).fanCount - n.fanFailed[i]!) * FAN_AFR,
+  );
   sample(
     wNic,
     (i) => {
@@ -408,18 +499,35 @@ export function processFailures(sim: Simulation): void {
     },
     (i) => nodeCfg(i).rails * (nodeCfg(i).computeNic.afr.v + LINK_FLAP_AFR),
   );
-  sample(wDimm, (i) => applyDimmFault(sim, i), (i) => {
-    const c = nodeCfg(i);
-    return c.dimm ? c.dimmCount * c.dimm.afr.v : c.cpuCount * 0.004;
-  });
-  sample(wNvme, (i) => applyNvmeFault(sim, i), (i) => nodeCfg(i).dataDriveCount * nodeCfg(i).dataDrive.afr.v);
-  sample(wNode, (i) => crashNode(sim, i), (i) => CRASH_NODE_AFR + nodeCfg(i).cpuCount * nodeCfg(i).cpu.afr.v);
-  sample(wNvsw, (i) => applyNvSwitchFault(sim, i), (i) => (nodeCfg(i).nvswitch ? nodeCfg(i).nvswitchCount * nodeCfg(i).nvswitch!.afr.v : 0));
+  sample(
+    wDimm,
+    (i) => applyDimmFault(sim, i),
+    (i) => {
+      const c = nodeCfg(i);
+      return c.dimm ? c.dimmCount * c.dimm.afr.v : c.cpuCount * 0.004;
+    },
+  );
+  sample(
+    wNvme,
+    (i) => applyNvmeFault(sim, i),
+    (i) => nodeCfg(i).dataDriveCount * nodeCfg(i).dataDrive.afr.v,
+  );
+  sample(
+    wNode,
+    (i) => crashNode(sim, i),
+    (i) => CRASH_NODE_AFR + nodeCfg(i).cpuCount * nodeCfg(i).cpu.afr.v,
+  );
+  sample(
+    wNvsw,
+    (i) => applyNvSwitchFault(sim, i),
+    (i) => (nodeCfg(i).nvswitch ? nodeCfg(i).nvswitchCount * nodeCfg(i).nvswitch!.afr.v : 0),
+  );
 
   // Fabric switches.
   const sw = sim.rt.switches;
   let wSw = 0;
-  for (let s = 0; s < sim.topo.switches.length; s++) if (!sw.failed[s]) wSw += sim.topo.switches[s]!.spec.afr.v;
+  for (let s = 0; s < sim.topo.switches.length; s++)
+    if (!sw.failed[s]) wSw += sim.topo.switches[s]!.spec.afr.v;
   let k = rng.poisson(wSw * scale);
   while (k-- > 0) {
     let u = rng.next() * wSw;
@@ -436,7 +544,8 @@ export function processFailures(sim: Simulation): void {
   // Facility equipment.
   sim.topo.halls.forEach((hall, h) => {
     const rt = sim.halls[h]!;
-    if (rng.poisson((hall.spec.air.count - rt.airUnitsFailed) * hall.airUnit.afr.v * scale) > 0) applyCoolingUnitFault(sim, h, 'air');
+    if (rng.poisson((hall.spec.air.count - rt.airUnitsFailed) * hall.airUnit.afr.v * scale) > 0)
+      applyCoolingUnitFault(sim, h, 'air');
     if (hall.liquidUnit && hall.spec.liquid) {
       if (rng.poisson((hall.spec.liquid.count - rt.liquidUnitsFailed) * hall.liquidUnit.afr.v * scale) > 0) {
         applyCoolingUnitFault(sim, h, 'liquid');
@@ -444,7 +553,8 @@ export function processFailures(sim: Simulation): void {
     }
   });
   const plant = sim.topo.spec.site.plant;
-  if (rng.poisson((plant.chillers - sim.plant.chillersFailed) * sim.plantParams.chiller.afr.v * scale) > 0) applyChillerFault(sim);
+  if (rng.poisson((plant.chillers - sim.plant.chillersFailed) * sim.plantParams.chiller.afr.v * scale) > 0)
+    applyChillerFault(sim);
 }
 
 function pickGpuByHazard(sim: Simulation): number {
@@ -467,7 +577,10 @@ function pickGpuByHazard(sim: Simulation): number {
   let sum = 0;
   for (let k = 0; k < info.cfg.gpuCount; k++) {
     const gi = info.gpuStart + k;
-    const w = g.health[gi]! >= GpuHealth.ResetRequired ? 0 : Math.exp(5802 * (1 / 343.15 - 1 / (g.tempC[gi]! + 273.15))) * (0.4 + 0.6 * g.activity[gi]!);
+    const w =
+      g.health[gi]! >= GpuHealth.ResetRequired
+        ? 0
+        : Math.exp(5802 * (1 / 343.15 - 1 / (g.tempC[gi]! + 273.15))) * (0.4 + 0.6 * g.activity[gi]!);
     weights.push(w);
     sum += w;
   }
@@ -526,14 +639,21 @@ export function processTickets(sim: Simulation): void {
         // Wait until running work has left the node (drain), re-check in 10 minutes.
         if (n.job[i]! >= 0) {
           n.drain[i] = 1;
-          if (n.state[i] === NodeState.Online || n.state[i] === NodeState.Degraded) sim.setNodeState(i, NodeState.Draining);
+          if (n.state[i] === NodeState.Online || n.state[i] === NodeState.Degraded)
+            sim.setNodeState(i, NodeState.Draining);
           t.due = sim.time + 600_000;
           continue;
         }
         const replaced = repairNodeHardware(sim, i);
         n.drain[i] = 0;
         const host = sim.topo.nodes[i]!.hostname;
-        sim.emit('notice', 'node', host, 'REMEDIATION_COMPLETE', `Ticket #${t.id} closed: ${t.action}${replaced.length ? ` (replaced ${replaced.join(', ')})` : ''} — power cycling node`);
+        sim.emit(
+          'notice',
+          'node',
+          host,
+          'REMEDIATION_COMPLETE',
+          `Ticket #${t.id} closed: ${t.action}${replaced.length ? ` (replaced ${replaced.join(', ')})` : ''} — power cycling node`,
+        );
         if (n.powered[i] && n.state[i] !== NodeState.Failed) {
           sim.setNodeState(i, NodeState.ShuttingDown, sim.topo.nodes[i]!.cfg.platform.boot.shutdownSeconds.v);
           n.afterShutdown[i] = 1;
@@ -550,7 +670,13 @@ export function processTickets(sim: Simulation): void {
         if (t.kind === 'fan') n.fanFailed[i] = 0;
         if (t.kind === 'nvme') n.nvmeFault[i] = 0;
         sim.refreshNodeFaults(i);
-        sim.emit('notice', 'node', sim.topo.nodes[i]!.hostname, 'REMEDIATION_COMPLETE', `Ticket #${t.id} closed: ${t.action} (no downtime)`);
+        sim.emit(
+          'notice',
+          'node',
+          sim.topo.nodes[i]!.hostname,
+          'REMEDIATION_COMPLETE',
+          `Ticket #${t.id} closed: ${t.action} (no downtime)`,
+        );
         break;
       }
       case 'switch':
@@ -558,15 +684,33 @@ export function processTickets(sim: Simulation): void {
         break;
       case 'air-unit':
         sim.halls[t.target]!.airUnitsFailed = Math.max(0, sim.halls[t.target]!.airUnitsFailed - 1);
-        sim.emit('notice', 'hall', sim.topo.halls[t.target]!.id, 'REMEDIATION_COMPLETE', `Ticket #${t.id} closed: ${t.action}`);
+        sim.emit(
+          'notice',
+          'hall',
+          sim.topo.halls[t.target]!.id,
+          'REMEDIATION_COMPLETE',
+          `Ticket #${t.id} closed: ${t.action}`,
+        );
         break;
       case 'liquid-unit':
         sim.halls[t.target]!.liquidUnitsFailed = Math.max(0, sim.halls[t.target]!.liquidUnitsFailed - 1);
-        sim.emit('notice', 'hall', sim.topo.halls[t.target]!.id, 'REMEDIATION_COMPLETE', `Ticket #${t.id} closed: ${t.action}`);
+        sim.emit(
+          'notice',
+          'hall',
+          sim.topo.halls[t.target]!.id,
+          'REMEDIATION_COMPLETE',
+          `Ticket #${t.id} closed: ${t.action}`,
+        );
         break;
       case 'chiller':
         sim.plant.chillersFailed = Math.max(0, sim.plant.chillersFailed - 1);
-        sim.emit('notice', 'facility', 'plant', 'REMEDIATION_COMPLETE', `Ticket #${t.id} closed: ${t.action}`);
+        sim.emit(
+          'notice',
+          'facility',
+          'plant',
+          'REMEDIATION_COMPLETE',
+          `Ticket #${t.id} closed: ${t.action}`,
+        );
         break;
     }
     sim.tickets = sim.tickets.filter((x) => x.id !== t.id);
@@ -582,7 +726,10 @@ export function injectFault(sim: Simulation, target: FaultTarget): CommandResult
   };
   const notPowered = (i: number) =>
     !sim.rt.nodes.powered[i] || sim.rt.nodes.state[i] === NodeState.Failed
-      ? { ok: false as const, error: { code: 'NODE_NOT_RUNNING', message: `${sim.topo.nodes[i]!.hostname} is not running` } }
+      ? {
+          ok: false as const,
+          error: { code: 'NODE_NOT_RUNNING', message: `${sim.topo.nodes[i]!.hostname} is not running` },
+        }
       : null;
   switch (target.kind) {
     case 'node-crash':
@@ -592,14 +739,19 @@ export function injectFault(sim: Simulation, target: FaultTarget): CommandResult
     case 'nic':
     case 'dimm': {
       const i = nodeRef(target.node);
-      if (i === null) return { ok: false, error: { code: 'NODE_NOT_FOUND', message: `Unknown node ${String(target.node)}` } };
+      if (i === null)
+        return {
+          ok: false,
+          error: { code: 'NODE_NOT_FOUND', message: `Unknown node ${String(target.node)}` },
+        };
       const err = notPowered(i);
       if (err) return err;
       const host = sim.topo.nodes[i]!.hostname;
       if (target.kind === 'node-crash') crashNode(sim, i);
       else if (target.kind === 'gpu') {
         const k = target.gpu ?? sim.rng.int(sim.topo.nodes[i]!.cfg.gpuCount);
-        if (k < 0 || k >= sim.topo.nodes[i]!.cfg.gpuCount) return { ok: false, error: { code: 'GPU_NOT_FOUND', message: `GPU index ${k} out of range` } };
+        if (k < 0 || k >= sim.topo.nodes[i]!.cfg.gpuCount)
+          return { ok: false, error: { code: 'GPU_NOT_FOUND', message: `GPU index ${k} out of range` } };
         applyGpuFault(sim, sim.topo.nodes[i]!.gpuStart + k, target.xid);
       } else if (target.kind === 'psu') applyPsuFault(sim, i);
       else if (target.kind === 'fan') applyFanFault(sim, i);
@@ -610,16 +762,29 @@ export function injectFault(sim: Simulation, target: FaultTarget): CommandResult
     case 'switch': {
       const s = typeof target.switch === 'number' ? target.switch : sim.switchIndex.get(target.switch);
       if (s === undefined || s < 0 || s >= sim.topo.switches.length) {
-        return { ok: false, error: { code: 'SWITCH_NOT_FOUND', message: `Unknown switch ${String(target.switch)}` } };
+        return {
+          ok: false,
+          error: { code: 'SWITCH_NOT_FOUND', message: `Unknown switch ${String(target.switch)}` },
+        };
       }
-      if (sim.rt.switches.failed[s]) return { ok: false, error: { code: 'SWITCH_ALREADY_FAILED', message: `${sim.topo.switches[s]!.name} is already failed` } };
+      if (sim.rt.switches.failed[s])
+        return {
+          ok: false,
+          error: {
+            code: 'SWITCH_ALREADY_FAILED',
+            message: `${sim.topo.switches[s]!.name} is already failed`,
+          },
+        };
       applySwitchFault(sim, s);
       return { ok: true, message: `Injected failure on ${sim.topo.switches[s]!.name}` };
     }
     case 'cooling-unit':
       return applyCoolingUnitFault(sim, target.hall, target.unit)
         ? { ok: true, message: `Injected ${target.unit} cooling unit failure in hall ${target.hall}` }
-        : { ok: false, error: { code: 'NO_UNIT_AVAILABLE', message: 'No running unit of that type in this hall' } };
+        : {
+            ok: false,
+            error: { code: 'NO_UNIT_AVAILABLE', message: 'No running unit of that type in this hall' },
+          };
     case 'chiller':
       return applyChillerFault(sim)
         ? { ok: true, message: 'Injected chiller failure' }

@@ -41,10 +41,21 @@ const STATUS_ICON: Record<Exclude<Tone, 'accent'>, typeof Info> = {
 };
 
 /** Status always carries an icon and a label — never colour alone. */
-export function StatusBadge({ tone, label, pulse }: { tone: Exclude<Tone, 'accent'>; label: string; pulse?: boolean }) {
+export function StatusBadge({
+  tone,
+  label,
+  pulse,
+}: {
+  tone: Exclude<Tone, 'accent'>;
+  label: string;
+  pulse?: boolean;
+}) {
   const Icon = STATUS_ICON[tone];
   return (
-    <span className={cx('sf-badge', tone !== 'neutral' && `sf-badge--${tone}`)} data-pulse={pulse || undefined}>
+    <span
+      className={cx('sf-badge', tone !== 'neutral' && `sf-badge--${tone}`)}
+      data-pulse={pulse || undefined}
+    >
       <Icon size={12} strokeWidth={2.2} aria-hidden />
       {label}
     </span>

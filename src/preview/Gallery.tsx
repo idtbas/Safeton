@@ -31,7 +31,10 @@ import {
 } from '../ui';
 
 function wave(n: number, seed: number, base = 0.5, amp = 0.3): number[] {
-  return Array.from({ length: n }, (_, i) => base + amp * Math.sin(i / 6 + seed) + amp * 0.35 * Math.sin(i / 2.3 + seed * 2));
+  return Array.from(
+    { length: n },
+    (_, i) => base + amp * Math.sin(i / 6 + seed) + amp * 0.35 * Math.sin(i / 2.3 + seed * 2),
+  );
 }
 
 export function Gallery() {
@@ -55,29 +58,72 @@ export function Gallery() {
     [],
   );
   const cols: Column<(typeof rows)[number]>[] = [
-    { id: 'id', header: '#', width: '70px', cell: (r) => <span className="mono sf-muted">{r.id}</span>, sortValue: (r) => r.id },
-    { id: 'host', header: 'Hostname', width: 'minmax(140px,1fr)', cell: (r) => <span className="mono">{r.host}</span>, sortValue: (r) => r.host },
-    { id: 'util', header: 'Util', width: '90px', align: 'right', cell: (r) => fmt.percent(r.util, 0), sortValue: (r) => r.util },
-    { id: 'temp', header: 'Temp', width: '90px', align: 'right', cell: (r) => fmt.temperature(r.temp), sortValue: (r) => r.temp },
-    { id: 'power', header: 'Power', width: '100px', align: 'right', cell: (r) => fmt.q(fmt.power(r.power)), sortValue: (r) => r.power },
+    {
+      id: 'id',
+      header: '#',
+      width: '70px',
+      cell: (r) => <span className="mono sf-muted">{r.id}</span>,
+      sortValue: (r) => r.id,
+    },
+    {
+      id: 'host',
+      header: 'Hostname',
+      width: 'minmax(140px,1fr)',
+      cell: (r) => <span className="mono">{r.host}</span>,
+      sortValue: (r) => r.host,
+    },
+    {
+      id: 'util',
+      header: 'Util',
+      width: '90px',
+      align: 'right',
+      cell: (r) => fmt.percent(r.util, 0),
+      sortValue: (r) => r.util,
+    },
+    {
+      id: 'temp',
+      header: 'Temp',
+      width: '90px',
+      align: 'right',
+      cell: (r) => fmt.temperature(r.temp),
+      sortValue: (r) => r.temp,
+    },
+    {
+      id: 'power',
+      header: 'Power',
+      width: '100px',
+      align: 'right',
+      cell: (r) => fmt.q(fmt.power(r.power)),
+      sortValue: (r) => r.power,
+    },
   ];
 
   return (
     <main className="pv-gallery">
       <div className="pv-gallery__intro">
         <h1>Design system</h1>
-        <p className="sf-secondary">Tokens, components and window chrome shared by every Safeton surface. Theme and accent apply live.</p>
+        <p className="sf-secondary">
+          Tokens, components and window chrome shared by every Safeton surface. Theme and accent apply live.
+        </p>
         <div className="pv-btn-row">
           <ButtonGroup label="Theme">
             {(['dark', 'light', 'system'] as const).map((t) => (
-              <Button key={t} pressed={settings.appearance.theme === t} onClick={() => update({ appearance: { theme: t } })}>
+              <Button
+                key={t}
+                pressed={settings.appearance.theme === t}
+                onClick={() => update({ appearance: { theme: t } })}
+              >
                 {t}
               </Button>
             ))}
           </ButtonGroup>
           <ButtonGroup label="Density">
             {(['compact', 'comfortable'] as const).map((d) => (
-              <Button key={d} pressed={settings.appearance.density === d} onClick={() => update({ appearance: { density: d } })}>
+              <Button
+                key={d}
+                pressed={settings.appearance.density === d}
+                onClick={() => update({ appearance: { density: d } })}
+              >
                 {d}
               </Button>
             ))}
@@ -92,7 +138,10 @@ export function Gallery() {
                 aria-label={ACCENTS[a].label}
                 title={ACCENTS[a].label}
                 className="pv-accent"
-                style={{ ['--h' as string]: ACCENTS[a].hue, ['--c' as string]: a === 'graphite' ? 0.03 : 0.13 }}
+                style={{
+                  ['--h' as string]: ACCENTS[a].hue,
+                  ['--c' as string]: a === 'graphite' ? 0.03 : 0.13,
+                }}
                 onClick={() => update({ appearance: { accent: a } })}
               />
             ))}
@@ -169,7 +218,15 @@ export function Gallery() {
             <div className="pv-stack">
               <Toggle checked={toggle} onChange={setToggle} label="Automated remediation" />
               <Toggle checked={false} onChange={() => undefined} label="Disabled toggle" disabled />
-              <Slider value={slider} min={200} max={700} step={10} onChange={setSlider} format={(v) => `${v} W`} label="GPU power limit" />
+              <Slider
+                value={slider}
+                min={200}
+                max={700}
+                step={10}
+                onChange={setSlider}
+                format={(v) => `${v} W`}
+                label="GPU power limit"
+              />
             </div>
           </Panel>
           <Panel title="Badges & status">
@@ -193,10 +250,40 @@ export function Gallery() {
       {tab === 'data' && (
         <div className="pv-gallery__grid">
           <div className="pv-kpis" style={{ gridColumn: '1 / -1' }}>
-            <MetricTile label="IT load" value="5.21" unit="MW" icon={<Zap size={12} />} trend={wave(60, 1, 5, 0.3)} trendFormat={(v) => `${fmt.formatNumber(v, 2, 2)} MW`} foot="GPUs 3.4 MW" />
-            <MetricTile label="PUE" value="1.142" icon={<Gauge size={12} />} trend={wave(60, 2, 1.15, 0.02)} trendFormat={(v) => fmt.formatNumber(v, 3, 3)} delta={{ text: '−0.011 vs 24 h', direction: 'down', good: true }} />
-            <MetricTile label="GPU temperature" value="71.4" unit="°C avg" icon={<Thermometer size={12} />} trend={wave(60, 3, 72, 4)} trendColor="var(--series-2)" foot="max 83.9 °C" />
-            <MetricTile label="Utilisation" value="93.8" unit="%" icon={<Layers size={12} />} trend={wave(60, 4, 0.9, 0.05)} foot="3 842 / 4 096 GPUs" />
+            <MetricTile
+              label="IT load"
+              value="5.21"
+              unit="MW"
+              icon={<Zap size={12} />}
+              trend={wave(60, 1, 5, 0.3)}
+              trendFormat={(v) => `${fmt.formatNumber(v, 2, 2)} MW`}
+              foot="GPUs 3.4 MW"
+            />
+            <MetricTile
+              label="PUE"
+              value="1.142"
+              icon={<Gauge size={12} />}
+              trend={wave(60, 2, 1.15, 0.02)}
+              trendFormat={(v) => fmt.formatNumber(v, 3, 3)}
+              delta={{ text: '−0.011 vs 24 h', direction: 'down', good: true }}
+            />
+            <MetricTile
+              label="GPU temperature"
+              value="71.4"
+              unit="°C avg"
+              icon={<Thermometer size={12} />}
+              trend={wave(60, 3, 72, 4)}
+              trendColor="var(--series-2)"
+              foot="max 83.9 °C"
+            />
+            <MetricTile
+              label="Utilisation"
+              value="93.8"
+              unit="%"
+              icon={<Layers size={12} />}
+              trend={wave(60, 4, 0.9, 0.05)}
+              foot="3 842 / 4 096 GPUs"
+            />
           </div>
           <Panel title="Progress & meters">
             <div className="pv-stack">
@@ -209,9 +296,29 @@ export function Gallery() {
           </Panel>
           <Panel title="Sparklines">
             <div className="pv-stack">
-              <Sparkline values={wave(80, 5)} width={260} height={32} format={(v) => fmt.formatNumber(v, 2, 2)} label="Series 1" />
-              <Sparkline values={wave(80, 6)} width={260} height={32} color="var(--series-2)" format={(v) => fmt.formatNumber(v, 2, 2)} label="Series 2" />
-              <Sparkline values={wave(80, 7)} width={260} height={32} color="var(--series-3)" area={false} label="Series 3" />
+              <Sparkline
+                values={wave(80, 5)}
+                width={260}
+                height={32}
+                format={(v) => fmt.formatNumber(v, 2, 2)}
+                label="Series 1"
+              />
+              <Sparkline
+                values={wave(80, 6)}
+                width={260}
+                height={32}
+                color="var(--series-2)"
+                format={(v) => fmt.formatNumber(v, 2, 2)}
+                label="Series 2"
+              />
+              <Sparkline
+                values={wave(80, 7)}
+                width={260}
+                height={32}
+                color="var(--series-3)"
+                area={false}
+                label="Series 3"
+              />
             </div>
           </Panel>
           <Panel title="Key / value">
@@ -226,7 +333,13 @@ export function Gallery() {
           </Panel>
           <Panel title="Virtualised table — 10 000 rows" flush style={{ gridColumn: '1 / -1' }}>
             <div style={{ height: 320 }}>
-              <Table rows={rows} columns={cols} rowKey={(r) => r.id} label="Demo table" initialSort={{ id: 'id', dir: 'asc' }} />
+              <Table
+                rows={rows}
+                columns={cols}
+                rowKey={(r) => r.id}
+                label="Demo table"
+                initialSort={{ id: 'id', dir: 'asc' }}
+              />
             </div>
           </Panel>
           <Panel title="Categorical palette (validated)" style={{ gridColumn: '1 / -1' }}>
@@ -256,10 +369,29 @@ export function Gallery() {
               <Tooltip content="Tooltips appear on hover and keyboard focus">
                 <Button>Hover me</Button>
               </Tooltip>
-              <Button onClick={() => push({ severity: 'warning', title: 'PSU failed', body: 'gpu-h1a03-02: PSU3 output fault — redundancy reduced to N+1', source: 'demo' })}>
+              <Button
+                onClick={() =>
+                  push({
+                    severity: 'warning',
+                    title: 'PSU failed',
+                    body: 'gpu-h1a03-02: PSU3 output fault — redundancy reduced to N+1',
+                    source: 'demo',
+                  })
+                }
+              >
                 Warning toast
               </Button>
-              <Button variant="danger" onClick={() => push({ severity: 'critical', title: 'Node failed', body: 'gpu-h2b11-04: Kernel panic — not syncing: Fatal exception', source: 'demo' })}>
+              <Button
+                variant="danger"
+                onClick={() =>
+                  push({
+                    severity: 'critical',
+                    title: 'Node failed',
+                    body: 'gpu-h2b11-04: Kernel panic — not syncing: Fatal exception',
+                    source: 'demo',
+                  })
+                }
+              >
                 Critical toast
               </Button>
             </div>
@@ -309,7 +441,17 @@ function WindowSandbox() {
       subtitle={`${order.length} window${order.length === 1 ? '' : 's'} · drag, resize, double-click title to maximise`}
       icon={<AppWindow size={14} />}
       actions={
-        <Button size="sm" icon={<Plus size={12} />} onClick={() => open('demo', { title: `Window ${order.length + 1}`, size: { w: 360, h: 220 }, minSize: { w: 240, h: 140 } })}>
+        <Button
+          size="sm"
+          icon={<Plus size={12} />}
+          onClick={() =>
+            open('demo', {
+              title: `Window ${order.length + 1}`,
+              size: { w: 360, h: 220 },
+              minSize: { w: 240, h: 140 },
+            })
+          }
+        >
           New window
         </Button>
       }

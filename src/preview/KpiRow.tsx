@@ -45,7 +45,7 @@ export function KpiRow() {
         unit="%"
         trend={tail(series.gpuUtil)}
         trendFormat={(v) => fmt.percent(v)}
-        foot={`${c.gpusAllocated.toLocaleString()} / ${c.gpusTotal.toLocaleString()} allocated`}
+        foot={`${fmt.formatNumber(c.gpusAllocated)} / ${fmt.formatNumber(c.gpusTotal)} allocated`}
       />
       <MetricTile
         label="GPU temperature"
@@ -73,7 +73,7 @@ export function KpiRow() {
         foot={`train ${fmt.compact(c.trainingTokensPerSec)} · infer ${fmt.compact(c.inferenceTokensPerSec)}`}
       />
       <MetricTile
-        label="Achieved compute"
+        label="Useful model compute"
         value={fmt.formatNumber(pf, pf >= 100 ? 0 : 1, pf >= 100 ? 0 : 1)}
         unit="PFLOP/s"
         trend={tail(series.achievedPflops)}

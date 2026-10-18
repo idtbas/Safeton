@@ -12,7 +12,12 @@ const EDGES: Edge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 export function WindowFrame({ win, children }: { win: WindowState; children: ReactNode }) {
   const focused = useWindowStore((s) => s.focusedId === win.id);
   const { focus, move, resize, close, minimize, toggleMaximize } = useWindowStore.getState();
-  const drag = useRef<{ kind: 'move' | Edge; sx: number; sy: number; b: { x: number; y: number; w: number; h: number } } | null>(null);
+  const drag = useRef<{
+    kind: 'move' | Edge;
+    sx: number;
+    sy: number;
+    b: { x: number; y: number; w: number; h: number };
+  } | null>(null);
 
   const begin = (kind: 'move' | Edge, e: ReactPointerEvent) => {
     if (e.button !== 0) return;
@@ -74,7 +79,11 @@ export function WindowFrame({ win, children }: { win: WindowState; children: Rea
           <button type="button" aria-label="Minimise" onClick={() => minimize(win.id)}>
             <Minus size={12} />
           </button>
-          <button type="button" aria-label={win.maximized ? 'Restore' : 'Maximise'} onClick={() => toggleMaximize(win.id)}>
+          <button
+            type="button"
+            aria-label={win.maximized ? 'Restore' : 'Maximise'}
+            onClick={() => toggleMaximize(win.id)}
+          >
             {win.maximized ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
           </button>
           <button type="button" aria-label="Close" className="os-window__close" onClick={() => close(win.id)}>

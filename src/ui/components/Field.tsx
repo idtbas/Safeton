@@ -1,4 +1,10 @@
-import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import {
+  forwardRef,
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react';
 import { cx } from '../cx';
 
 export function Field({
@@ -22,7 +28,13 @@ export function Field({
         </label>
       )}
       {children}
-      {error ? <span className="sf-field__error" role="alert">{error}</span> : hint ? <span className="sf-field__hint">{hint}</span> : null}
+      {error ? (
+        <span className="sf-field__error" role="alert">
+          {error}
+        </span>
+      ) : hint ? (
+        <span className="sf-field__hint">{hint}</span>
+      ) : null}
     </div>
   );
 }
@@ -65,7 +77,10 @@ export interface SelectOption<T extends string = string> {
   disabled?: boolean;
 }
 
-export interface SelectProps<T extends string> extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange' | 'value'> {
+export interface SelectProps<T extends string> extends Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  'onChange' | 'value'
+> {
   label?: ReactNode;
   hint?: ReactNode;
   options: SelectOption<T>[];
@@ -73,12 +88,27 @@ export interface SelectProps<T extends string> extends Omit<SelectHTMLAttributes
   onChange: (value: T) => void;
 }
 
-export function Select<T extends string>({ label, hint, options, value, onChange, id, className, ...rest }: SelectProps<T>) {
+export function Select<T extends string>({
+  label,
+  hint,
+  options,
+  value,
+  onChange,
+  id,
+  className,
+  ...rest
+}: SelectProps<T>) {
   const auto = useId();
   const selectId = id ?? auto;
   return (
     <Field label={label} hint={hint} htmlFor={selectId}>
-      <select id={selectId} className={cx('sf-select', className)} value={value} onChange={(e) => onChange(e.target.value as T)} {...rest}>
+      <select
+        id={selectId}
+        className={cx('sf-select', className)}
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        {...rest}
+      >
         {options.map((o) => (
           <option key={o.value} value={o.value} disabled={o.disabled}>
             {o.label}

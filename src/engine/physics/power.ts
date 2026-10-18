@@ -20,7 +20,13 @@ export function leakageFactor(tempC: number): number {
  * @param activity fraction of full-load switching activity (utilisation × workload intensity)
  * @param clock    fraction of maximum boost clock actually achieved
  */
-export function gpuPowerW(idleW: number, tdpW: number, activity: number, clock: number, tempC: number): number {
+export function gpuPowerW(
+  idleW: number,
+  tdpW: number,
+  activity: number,
+  clock: number,
+  tempC: number,
+): number {
   const pStatic = idleW * leakageFactor(tempC);
   if (activity === 0) return pStatic;
   const scale = clock === 1 ? 1 : Math.pow(clock, DVFS_EXPONENT);

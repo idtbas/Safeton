@@ -78,7 +78,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t !== id) }),
   markRead: (id) => set({ items: get().items.map((n) => (n.id === id ? { ...n, read: true } : n)) }),
   markAllRead: () => set({ items: get().items.map((n) => (n.read ? n : { ...n, read: true })) }),
-  remove: (id) => set({ items: get().items.filter((n) => n.id !== id), toasts: get().toasts.filter((t) => t !== id) }),
+  remove: (id) =>
+    set({ items: get().items.filter((n) => n.id !== id), toasts: get().toasts.filter((t) => t !== id) }),
   clear: () => set({ items: [], toasts: [] }),
   configure: (opts) => set(opts),
 }));

@@ -62,7 +62,8 @@ export function designInfrastructure(input: DesignInput): InfraSpec {
       const count = Math.min(input.racksPerRow, left);
       left -= count;
       rows.push({
-        id: ROW_IDS[r % ROW_IDS.length]! + (r >= ROW_IDS.length ? String(Math.floor(r / ROW_IDS.length)) : ''),
+        id:
+          ROW_IDS[r % ROW_IDS.length]! + (r >= ROW_IDS.length ? String(Math.floor(r / ROW_IDS.length)) : ''),
         rackGroups: [
           {
             count,
@@ -81,7 +82,10 @@ export function designInfrastructure(input: DesignInput): InfraSpec {
       name: `Data Hall ${h + 1}`,
       rows,
       air: { unitId: 'crah-150', count: 2, redundancy: 'N+1', supplyC: airSupplyC },
-      liquid: input.compute.cooling === 'dlc' ? { cduId: 'cdu-row-1350', count: 2, redundancy: 'N+1', supplyC: warmSupplyC } : null,
+      liquid:
+        input.compute.cooling === 'dlc'
+          ? { cduId: 'cdu-row-1350', count: 2, redundancy: 'N+1', supplyC: warmSupplyC }
+          : null,
     });
   }
 
@@ -155,7 +159,8 @@ export function designInfrastructure(input: DesignInput): InfraSpec {
 
   const plant = provisional.site.plant;
   const chilledW = totalRoom + totalRdhx + (plant.dryCoolerId ? 0 : totalLiquid);
-  const chillerId = chilledW < 600_000 ? 'chiller-air-250' : chilledW < 6_000_000 ? 'chiller-air-1000' : 'chiller-water-3500';
+  const chillerId =
+    chilledW < 600_000 ? 'chiller-air-250' : chilledW < 6_000_000 ? 'chiller-air-1000' : 'chiller-water-3500';
   const chillerCap = part('cooling', chillerId).capacityKW.v * 1000;
   plant.chillerId = chillerId;
   plant.chillers = nPlus1(chilledW * 1.1, chillerCap);
@@ -164,7 +169,11 @@ export function designInfrastructure(input: DesignInput): InfraSpec {
     plant.dryCoolers = nPlus1(totalLiquid, dcCap);
   }
   const upsId = itW < 500_000 ? 'ups-modular-50' : 'ups-modular-250';
-  provisional.site.ups = { upsId, modules: nPlus1(itW, part('ups', upsId).moduleKW.v * 1000), redundancy: 'N+1' };
+  provisional.site.ups = {
+    upsId,
+    modules: nPlus1(itW, part('ups', upsId).moduleKW.v * 1000),
+    redundancy: 'N+1',
+  };
 
   const sized = expandTopology(provisional);
   const facility = facilityPower(buildPlantParams(sized), {
@@ -176,7 +185,11 @@ export function designInfrastructure(input: DesignInput): InfraSpec {
   });
   const facilityMW = facility.facilityW / 1e6;
   const genUnitMW = facilityMW < 0.5 ? 0.25 : facilityMW < 2 ? 0.5 : 3;
-  provisional.site.generators = { count: nPlus1(facilityMW, genUnitMW), unitMW: genUnitMW, redundancy: 'N+1' };
+  provisional.site.generators = {
+    count: nPlus1(facilityMW, genUnitMW),
+    unitMW: genUnitMW,
+    redundancy: 'N+1',
+  };
   const feedStep = facilityMW < 2 ? 0.25 : facilityMW < 20 ? 1 : 5;
   provisional.site.utility = { feedMW: Math.ceil((facilityMW * 1.2) / feedStep) * feedStep, feeds: 2 };
 
@@ -210,7 +223,14 @@ export const TEMPLATES: readonly InfraTemplate[] = [
         name: 'Single AI Server',
         description: 'One HGX H100 8-GPU system in a 42U lab rack with local storage and an NFS appliance.',
         templateId: 'single-server',
-        site: { name: 'Engineering Lab', code: 'MUC-LAB', city: 'München', country: 'DE', climate: { annualMeanC: 9.5, seasonalAmplitudeC: 9.5, diurnalAmplitudeC: 5 }, energyPriceEurPerKWh: 0.2 },
+        site: {
+          name: 'Engineering Lab',
+          code: 'MUC-LAB',
+          city: 'München',
+          country: 'DE',
+          climate: { annualMeanC: 9.5, seasonalAmplitudeC: 9.5, diurnalAmplitudeC: 5 },
+          energyPriceEurPerKWh: 0.2,
+        },
         compute: {
           system: { kind: 'platform', platformId: 'hgx-h100-8gpu', nodesPerRack: 1 },
           racks: 1,
@@ -233,7 +253,8 @@ export const TEMPLATES: readonly InfraTemplate[] = [
       designInfrastructure({
         id: 'gpu-rack',
         name: 'GPU Rack',
-        description: 'Four HGX H200 systems in one 48U rack with an active rear-door heat exchanger and one Quantum-2 switch.',
+        description:
+          'Four HGX H200 systems in one 48U rack with an active rear-door heat exchanger and one Quantum-2 switch.',
         templateId: 'gpu-rack',
         site: { name: 'Colocation Suite', code: 'FRA-C4', ...FRANKFURT },
         compute: {
@@ -283,7 +304,8 @@ export const TEMPLATES: readonly InfraTemplate[] = [
       designInfrastructure({
         id: 'enterprise-4096',
         name: 'Enterprise AI Data Center',
-        description: '512 HGX H200 systems in two data halls, rail-optimized non-blocking NDR fabric, 8 AI400X2.',
+        description:
+          '512 HGX H200 systems in two data halls, rail-optimized non-blocking NDR fabric, 8 AI400X2.',
         templateId: 'enterprise-4096',
         site: { name: 'Frankfurt Campus', code: 'FRA2', ...FRANKFURT },
         compute: {
@@ -308,7 +330,8 @@ export const TEMPLATES: readonly InfraTemplate[] = [
       designInfrastructure({
         id: 'supercomputer-nvl72',
         name: 'NVL72 AI Supercomputer',
-        description: '64 GB200 NVL72 racks (72-GPU NVLink domains), warm-water DLC with dry coolers, 4-rail NDR fabric.',
+        description:
+          '64 GB200 NVL72 racks (72-GPU NVLink domains), warm-water DLC with dry coolers, 4-rail NDR fabric.',
         templateId: 'supercomputer-nvl72',
         site: {
           name: 'Nordic Compute Campus',
@@ -340,7 +363,8 @@ export const TEMPLATES: readonly InfraTemplate[] = [
       designInfrastructure({
         id: 'hyperscale-32k',
         name: 'Hyperscale AI Campus',
-        description: '4 096 liquid-cooled HGX B200 systems with ConnectX-8, rail-optimized Quantum-X800 fabric, 64 AI400X2.',
+        description:
+          '4 096 liquid-cooled HGX B200 systems with ConnectX-8, rail-optimized Quantum-X800 fabric, 64 AI400X2.',
         templateId: 'hyperscale-32k',
         site: {
           name: 'Dallas–Fort Worth Campus',
@@ -351,7 +375,12 @@ export const TEMPLATES: readonly InfraTemplate[] = [
           energyPriceEurPerKWh: 0.065,
         },
         compute: {
-          system: { kind: 'platform', platformId: 'hgx-b200-8gpu', nodesPerRack: 4, overrides: { computeNicId: 'nvidia-cx8-xdr' } },
+          system: {
+            kind: 'platform',
+            platformId: 'hgx-b200-8gpu',
+            nodesPerRack: 4,
+            overrides: { computeNicId: 'nvidia-cx8-xdr' },
+          },
           racks: 1024,
           rackId: 'rack-48u-800',
           cooling: 'dlc',

@@ -11,7 +11,19 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'default', size = 'md', icon, iconOnly, loading, pressed, className, children, disabled, type = 'button', ...rest },
+  {
+    variant = 'default',
+    size = 'md',
+    icon,
+    iconOnly,
+    loading,
+    pressed,
+    className,
+    children,
+    disabled,
+    type = 'button',
+    ...rest
+  },
   ref,
 ) {
   return (

@@ -32,8 +32,14 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            { group: ['react', 'react-dom', 'zustand', 'idb'], message: 'Engine and catalog must not depend on UI or persistence libraries.' },
-            { group: ['**/os/**', '**/ui/**', '**/apps/**', '**/preview/**'], message: 'Engine and catalog must not import from upper layers.' },
+            {
+              group: ['react', 'react-dom', 'zustand', 'idb'],
+              message: 'Engine and catalog must not depend on UI or persistence libraries.',
+            },
+            {
+              group: ['**/os/**', '**/ui/**', '**/apps/**', '**/preview/**'],
+              message: 'Engine and catalog must not import from upper layers.',
+            },
           ],
         },
       ],

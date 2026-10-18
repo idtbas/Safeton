@@ -19,7 +19,10 @@ export function FacilityPanel() {
       cell: (h) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
           <div style={{ flex: 1 }}>
-            <Meter value={h.airCapacityW > 0 ? h.roomAirHeatW / h.airCapacityW : 1} label={`${h.name} air load`} />
+            <Meter
+              value={h.airCapacityW > 0 ? h.roomAirHeatW / h.airCapacityW : 1}
+              label={`${h.name} air load`}
+            />
           </div>
           <span className="mono sf-muted" style={{ fontSize: 'var(--fs-2xs)' }}>
             {h.airUnitsHealthy}/{h.airUnitsInstalled}
@@ -33,7 +36,9 @@ export function FacilityPanel() {
       width: '96px',
       align: 'right',
       cell: (h) => (
-        <span style={{ color: h.supplyAirC > h.supplyAirSetpointC + 2 ? 'var(--status-warning)' : undefined }}>
+        <span
+          style={{ color: h.supplyAirC > h.supplyAirSetpointC + 2 ? 'var(--status-warning)' : undefined }}
+        >
           {fmt.temperature(h.supplyAirC)}
         </span>
       ),
@@ -48,7 +53,10 @@ export function FacilityPanel() {
           <span className="sf-muted">—</span>
         ) : (
           <span>
-            {fmt.temperature(h.liquidSupplyC)} <span className="sf-muted">{h.liquidUnitsHealthy}/{h.liquidUnitsInstalled}</span>
+            {fmt.temperature(h.liquidSupplyC)}{' '}
+            <span className="sf-muted">
+              {h.liquidUnitsHealthy}/{h.liquidUnitsInstalled}
+            </span>
           </span>
         ),
     },
@@ -58,11 +66,26 @@ export function FacilityPanel() {
       width: '150px',
       cell: (h) => (
         <div style={{ display: 'flex', gap: 4 }}>
-          <Button size="sm" variant="danger" onClick={() => void run({ type: 'fault.inject', target: { kind: 'cooling-unit', hall: h.idx, unit: 'air' } })}>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() =>
+              void run({ type: 'fault.inject', target: { kind: 'cooling-unit', hall: h.idx, unit: 'air' } })
+            }
+          >
             Fail CRAH
           </Button>
           {h.liquidSupplyC !== null && (
-            <Button size="sm" variant="danger" onClick={() => void run({ type: 'fault.inject', target: { kind: 'cooling-unit', hall: h.idx, unit: 'liquid' } })}>
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() =>
+                void run({
+                  type: 'fault.inject',
+                  target: { kind: 'cooling-unit', hall: h.idx, unit: 'liquid' },
+                })
+              }
+            >
               Fail CDU
             </Button>
           )}
@@ -77,11 +100,22 @@ export function FacilityPanel() {
       icon={<Snowflake size={14} />}
       actions={
         <>
-          <StatusBadge tone={f.chillersHealthy < f.chillersInstalled ? 'warning' : 'good'} label={`Chillers ${f.chillersHealthy}/${f.chillersInstalled}`} />
-          <Button size="sm" variant="danger" onClick={() => void run({ type: 'fault.inject', target: { kind: 'chiller' } })}>
+          <StatusBadge
+            tone={f.chillersHealthy < f.chillersInstalled ? 'warning' : 'good'}
+            label={`Chillers ${f.chillersHealthy}/${f.chillersInstalled}`}
+          />
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => void run({ type: 'fault.inject', target: { kind: 'chiller' } })}
+          >
             Fail chiller
           </Button>
-          <Button size="sm" icon={<Wrench size={12} />} onClick={() => void run({ type: 'facility.repairAll' }, true)}>
+          <Button
+            size="sm"
+            icon={<Wrench size={12} />}
+            onClick={() => void run({ type: 'facility.repairAll' }, true)}
+          >
             Repair plant
           </Button>
         </>

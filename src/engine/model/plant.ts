@@ -21,7 +21,12 @@ export interface HeatSplit {
  * exchanger, and removed by direct liquid cooling. RDHx capture saturates at door capacity;
  * the excess spills into the room.
  */
-export function splitRackHeat(cooling: RackCooling, totalW: number, liquidW: number, rdhxCapacityW: number): HeatSplit {
+export function splitRackHeat(
+  cooling: RackCooling,
+  totalW: number,
+  liquidW: number,
+  rdhxCapacityW: number,
+): HeatSplit {
   const airSide = Math.max(0, totalW - liquidW);
   if (cooling === 'rdhx') {
     const captured = Math.min(airSide, rdhxCapacityW);

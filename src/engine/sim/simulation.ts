@@ -19,7 +19,12 @@
 import type { PsuSpec } from '../../catalog';
 import { Rng, hashBytes, hashString } from '../core/rng';
 import { RingBuffer } from '../core/ringbuffer';
-import { ambientTemperatureC, facilityPower, type FacilityPlantParams, type FacilityPower } from '../physics/facility';
+import {
+  ambientTemperatureC,
+  facilityPower,
+  type FacilityPlantParams,
+  type FacilityPower,
+} from '../physics/facility';
 import { gpuPowerW, powerLimitedClock, psuInputW } from '../physics/power';
 import {
   AIR_MIN_DUTY,
@@ -150,6 +155,7 @@ export interface ClusterAggregates {
   storageWriteGBs: number;
   trainingTokensPerSec: number;
   inferenceTokensPerSec: number;
+  /** Useful model FLOP/s delivered by running workloads (training 6N+attention, inference 2N). */
   achievedFlops: number;
   /** Sum over GPUs of Arrhenius-weighted failure propensity (for hazard sampling). */
   gpuHazardWeight: number;
@@ -176,7 +182,10 @@ export interface SimStateBlob {
   tickets: RepairTicket[];
   nextTicketId: number;
   events: { seq: number; events: Snapshot['events'] };
-  series: { time: { capacity: number; values: Float64Array }; data: Record<string, { capacity: number; values: Float64Array }> };
+  series: {
+    time: { capacity: number; values: Float64Array };
+    data: Record<string, { capacity: number; values: Float64Array }>;
+  };
   energy: { itWh: number; facilityWh: number; costEur: number };
   congestion: Record<number, number>;
   journal: { tick: number; command: Command }[];
@@ -222,7 +231,13 @@ export class Simulation {
   seriesTime = new RingBuffer(SERIES_CAPACITY);
   series: Record<SeriesKey, RingBuffer>;
   /** Per-node history [node * LEN + i] for util, max temp, power (not persisted). */
-  readonly nodeHist: { util: Float32Array; temp: Float32Array; power: Float32Array; cursor: number; filled: number };
+  readonly nodeHist: {
+    util: Float32Array;
+    temp: Float32Array;
+    power: Float32Array;
+    cursor: number;
+    filled: number;
+  };
   private pendingSamples: SeriesSample[] = [];
   private tickDurations = new Float64Array(120);
   private tickDurCursor = 0;
@@ -315,7 +330,8 @@ export class Simulation {
       }
     }
     for (let r = 0; r < racks.inletC.length; r++) {
-      racks.inletC[r] = this.halls[this.topo.racks[r]!.hallIdx]!.supplyAirC + this.topo.racks[r]!.inletOffsetC;
+      racks.inletC[r] =
+        this.halls[this.topo.racks[r]!.hallIdx]!.supplyAirC + this.topo.racks[r]!.inletOffsetC;
     }
     this.facility = facilityPower(this.plantParams, {
       itW: 0,
@@ -383,7 +399,11 @@ export class Simulation {
     }
   }
 
-  snapshot(perf?: Partial<PerfStats>, control?: { running: boolean; timeScale: number }, sinceSeq = 0): Snapshot {
+  snapshot(
+    perf?: Partial<PerfStats>,
+    control?: { running: boolean; timeScale: number },
+    sinceSeq = 0,
+  ): Snapshot {
     const samples = this.pendingSamples;
     this.pendingSamples = [];
     return buildSnapshot(this, {
@@ -397,7 +417,8 @@ export class Simulation {
 
   perfStats(): PerfStats {
     const n = this.tickDurCount;
-    if (n === 0) return { tickMsAvg: 0, tickMsP95: 0, ticksPerSecond: 0, simSecondsPerSecond: 0, lagging: false };
+    if (n === 0)
+      return { tickMsAvg: 0, tickMsP95: 0, ticksPerSecond: 0, simSecondsPerSecond: 0, lagging: false };
     const vals = Array.from(this.tickDurations.subarray(0, n)).sort((a, b) => a - b);
     const avg = vals.reduce((s, v) => s + v, 0) / n;
     return {
@@ -462,7 +483,8 @@ export class Simulation {
 
   static restore(blob: SimStateBlob): Simulation {
     if (blob.format !== SIM_STATE_FORMAT) throw new Error('Not a Safeton simulation state');
-    if (blob.version !== SIM_STATE_VERSION) throw new Error(`Unsupported simulation state version ${blob.version}`);
+    if (blob.version !== SIM_STATE_VERSION)
+      throw new Error(`Unsupported simulation state version ${blob.version}`);
     const sim = new Simulation(blob.spec, {
       seed: blob.seed,
       dt: blob.dt,
@@ -470,7 +492,9 @@ export class Simulation {
       autoRemediation: blob.autoRemediation,
     });
     if (sim.topo.fingerprint !== blob.fingerprint) {
-      throw new Error('Topology fingerprint mismatch — the saved state belongs to a different hardware catalog or spec');
+      throw new Error(
+        'Topology fingerprint mismatch — the saved state belongs to a different hardware catalog or spec',
+      );
     }
     restoreRuntime(sim.rt, blob.arrays);
     sim.tick = blob.tick;
@@ -595,7 +619,13 @@ export class Simulation {
         n.nicFlapTimer[i] = Math.max(0, n.nicFlapTimer[i]! - dt);
         if (n.nicFlapTimer[i] === 0 && n.nicDownMask[i]) {
           n.nicDownMask[i] = 0;
-          this.emit('notice', 'node', this.topo.nodes[i]!.hostname, 'NIC_LINK_UP', 'mlx5_core: port module event: link up (transceiver recovered)');
+          this.emit(
+            'notice',
+            'node',
+            this.topo.nodes[i]!.hostname,
+            'NIC_LINK_UP',
+            'mlx5_core: port module event: link up (transceiver recovered)',
+          );
           this.refreshNodeFaults(i);
         }
       }
@@ -609,12 +639,24 @@ export class Simulation {
         if (this.rng.chance(0.004)) {
           n.dimmFault[i] = 1;
           this.setNodeState(i, NodeState.Failed);
-          this.emit('error', 'node', host, 'NODE_POST_FAILED', 'POST failed: memory training error on DIMM channel (BMC SEL 0x0C)');
+          this.emit(
+            'error',
+            'node',
+            host,
+            'NODE_POST_FAILED',
+            'POST failed: memory training error on DIMM channel (BMC SEL 0x0C)',
+          );
           continue;
         }
         const boot = node.cfg.platform.boot.osBootSeconds.v * this.rng.range(0.9, 1.12);
         this.setNodeState(i, NodeState.Booting, boot);
-        this.emit('info', 'node', host, 'NODE_POST_OK', `POST complete — ${node.cfg.hostMemoryGB} GB memory, ${node.cfg.gpuCount} GPUs enumerated`);
+        this.emit(
+          'info',
+          'node',
+          host,
+          'NODE_POST_OK',
+          `POST complete — ${node.cfg.hostMemoryGB} GB memory, ${node.cfg.gpuCount} GPUs enumerated`,
+        );
       } else if (s === NodeState.Booting) {
         n.upSince[i] = this.time;
         n.bootCount[i] = n.bootCount[i]! + 1;
@@ -638,7 +680,13 @@ export class Simulation {
           this.emit('notice', 'node', host, 'NODE_MAINTENANCE', 'Node powered off and placed in maintenance');
         } else {
           this.setNodeState(i, NodeState.Offline);
-          this.emit('info', 'node', host, 'NODE_POWERED_OFF', 'Chassis power off (graceful shutdown complete)');
+          this.emit(
+            'info',
+            'node',
+            host,
+            'NODE_POWERED_OFF',
+            'Chassis power off (graceful shutdown complete)',
+          );
         }
       }
     }
@@ -662,7 +710,13 @@ export class Simulation {
     }
     const post = node.cfg.platform.boot.postSeconds.v * this.rng.range(0.92, 1.15);
     this.setNodeState(i, NodeState.Post, post);
-    this.emit('info', 'node', node.hostname, 'NODE_POST_START', 'Chassis power on — BIOS POST started (memory training)');
+    this.emit(
+      'info',
+      'node',
+      node.hostname,
+      'NODE_POST_START',
+      'Chassis power on — BIOS POST started (memory training)',
+    );
   }
 
   // ---- Physics ----------------------------------------------------------------------------
@@ -698,7 +752,6 @@ export class Simulation {
     let hbmUsed = 0;
     let throttled = 0;
     let hazard = 0;
-    let achievedFlops = 0;
     const nodeHazard = this.nodeHazard;
 
     for (let i = 0; i < topo.nodes.length; i++) {
@@ -764,7 +817,6 @@ export class Simulation {
       const tdp = spec.power.tdpW.v;
       const slow = spec.thermal.slowdownC.v;
       const shut = spec.thermal.shutdownC.v;
-      const flops = spec.peak.bf16.dense.v * 1e12 * spec.kernelEfficiency.v;
 
       let gpuW = 0;
       let utilNode = 0;
@@ -792,7 +844,6 @@ export class Simulation {
           if (brake) thr |= T_BRAKE;
           P = gpuPowerW(idle, tdp, act, clock, T);
           gpusHealthy++;
-          achievedFlops += flops * clock * act;
         }
         const ref = k >= half ? refHigh : refLow;
         const tss = ref + P * rScale * gVar[gi]!;
@@ -828,7 +879,8 @@ export class Simulation {
 
       // Fans (firmware fan curve, slew limited). POST runs fans at full speed.
       let duty = n.fanDuty[i]!;
-      const target = state === POST ? 1 : liquid ? Math.max(AIR_MIN_DUTY, fanTargetDuty(inlet + 25)) : fanTargetDuty(maxT);
+      const target =
+        state === POST ? 1 : liquid ? Math.max(AIR_MIN_DUTY, fanTargetDuty(inlet + 25)) : fanTargetDuty(maxT);
       const step = FAN_SLEW_PER_S * dt;
       duty += Math.max(-step, Math.min(step, target - duty));
       duty = duty < AIR_MIN_DUTY ? AIR_MIN_DUTY : duty > 1 ? 1 : duty;
@@ -866,7 +918,6 @@ export class Simulation {
     c.hbmUsedGB = hbmUsed;
     c.throttledGpus = throttled;
     c.gpuHazardWeight = hazard;
-    c.achievedFlops = achievedFlops;
   }
 
   private thermalTrip(i: number, maxT: number): void {
@@ -875,19 +926,32 @@ export class Simulation {
     n.faults[i] = n.faults[i]! | NodeFault.Thermal;
     for (let k = 0; k < node.cfg.gpuCount; k++) {
       const gi = node.gpuStart + k;
-      if (this.rt.gpus.tempC[gi]! >= node.cfg.gpu.thermal.shutdownC.v && this.rt.gpus.health[gi]! < GpuHealth.ResetRequired) {
+      if (
+        this.rt.gpus.tempC[gi]! >= node.cfg.gpu.thermal.shutdownC.v &&
+        this.rt.gpus.health[gi]! < GpuHealth.ResetRequired
+      ) {
         this.rt.gpus.health[gi] = GpuHealth.ResetRequired;
         this.rt.gpus.lastXid[gi] = 79;
       }
     }
-    this.failNode(i, `Thermal trip: GPU at ${maxT.toFixed(1)} °C ≥ shutdown threshold — BMC emergency power off`, true, 'thermal');
+    this.failNode(
+      i,
+      `Thermal trip: GPU at ${maxT.toFixed(1)} °C ≥ shutdown threshold — BMC emergency power off`,
+      true,
+      'thermal',
+    );
   }
 
   /**
    * Marks a node failed, crashing any job on it. `powerOff` reflects whether the BMC cut
    * power (thermal trip, power loss) or the node is hung.
    */
-  failNode(i: number, reason: string, powerOff: boolean, cause: 'crash' | 'thermal' | 'power' | 'hardware'): void {
+  failNode(
+    i: number,
+    reason: string,
+    powerOff: boolean,
+    cause: 'crash' | 'thermal' | 'power' | 'hardware',
+  ): void {
     const node = this.topo.nodes[i]!;
     const n = this.rt.nodes;
     if (n.state[i] === NodeState.Failed) return;
@@ -898,7 +962,12 @@ export class Simulation {
     if (job >= 0) this.onNodeLostByJob(job, i, reason);
     if (this.autoRemediation) {
       const hours = cause === 'thermal' ? 0.5 : cause === 'crash' ? 0.25 : 4;
-      this.openTicket('node', i, hours, cause === 'hardware' ? 'Hardware replacement (RMA)' : 'Reboot and health check');
+      this.openTicket(
+        'node',
+        i,
+        hours,
+        cause === 'hardware' ? 'Hardware replacement (RMA)' : 'Reboot and health check',
+      );
     }
   }
 
@@ -946,7 +1015,8 @@ export class Simulation {
         aux = rack.auxIdleW + (rack.auxPeakW - rack.auxIdleW) * act;
         liquid += aux * 0.85;
       } else if (rack.kind === 'storage') {
-        aux = rack.auxIdleW + (rack.auxPeakW - rack.auxIdleW) * Math.min(1, this.cluster.storageWriteGBs / 50);
+        aux =
+          rack.auxIdleW + (rack.auxPeakW - rack.auxIdleW) * Math.min(1, this.cluster.storageWriteGBs / 50);
       }
       power += aux;
       const split = splitRackHeat(rack.cooling, power, liquid, this.rdhxCapW);
@@ -962,13 +1032,18 @@ export class Simulation {
       itW += power;
       rk.inletC[rack.idx] = hall.supplyAirC + rack.inletOffsetC + rk.hotspotC[rack.idx]!;
       // Room-air racks above ~25 kW develop inlet hot spots from hot-aisle recirculation.
-      const target = rack.cooling === 'air' ? Math.max(0, (split.roomAirW - 25_000) / 1000) * HOTSPOT_C_PER_KW : 0;
-      rk.hotspotC[rack.idx] = rk.hotspotC[rack.idx]! + (target - rk.hotspotC[rack.idx]!) * (1 - Math.exp(-dt / 120));
+      const target =
+        rack.cooling === 'air' ? Math.max(0, (split.roomAirW - 25_000) / 1000) * HOTSPOT_C_PER_KW : 0;
+      rk.hotspotC[rack.idx] =
+        rk.hotspotC[rack.idx]! + (target - rk.hotspotC[rack.idx]!) * (1 - Math.exp(-dt / 120));
     }
 
     // Chilled-water plant
     const plantSpec = topo.spec.site.plant;
-    const chillerCapW = Math.max(0, plantSpec.chillers - this.plant.chillersFailed) * this.plantParams.chiller.capacityKW.v * 1000;
+    const chillerCapW =
+      Math.max(0, plantSpec.chillers - this.plant.chillersFailed) *
+      this.plantParams.chiller.capacityKW.v *
+      1000;
     let chilledLoad = 0;
     let liquidTotal = 0;
     for (const h of this.halls) {
@@ -989,7 +1064,10 @@ export class Simulation {
       const airTarget = h.airSetpointC + Math.min(25, over * HALL_AIR_OVERLOAD_K) + chwRise * 0.8;
       h.supplyAirC += (airTarget - h.supplyAirC) * (1 - Math.exp(-dt / HALL_AIR_TAU_S));
       if (hallInfo.liquidUnit && hallInfo.spec.liquid) {
-        const lcap = Math.max(0, hallInfo.spec.liquid.count - h.liquidUnitsFailed) * hallInfo.liquidUnit.capacityKW.v * 1000;
+        const lcap =
+          Math.max(0, hallInfo.spec.liquid.count - h.liquidUnitsFailed) *
+          hallInfo.liquidUnit.capacityKW.v *
+          1000;
         const lover = lcap > 0 ? Math.max(0, h.liquidW / lcap - 1) : h.liquidW > 0 ? 1.2 : 0;
         // Warm-water loops above the dry-cooler limit depend on chiller assist.
         const assist = this.ambientC > plantSpec.warmWaterSupplyC - 1 ? chwRise * 0.5 : 0;
@@ -1055,7 +1133,9 @@ export class Simulation {
     const supply = this.halls.reduce((s, h) => s + h.supplyAirC, 0) / Math.max(1, this.halls.length);
     const liquidHalls = this.topo.halls.filter((h) => h.liquidUnit);
     const liquidSupply =
-      liquidHalls.length > 0 ? liquidHalls.reduce((s, h) => s + this.halls[h.idx]!.liquidSupplyC, 0) / liquidHalls.length : 0;
+      liquidHalls.length > 0
+        ? liquidHalls.reduce((s, h) => s + this.halls[h.idx]!.liquidSupplyC, 0) / liquidHalls.length
+        : 0;
     return {
       itPowerW: this.itW,
       facilityPowerW: this.facility.facilityW,
@@ -1125,7 +1205,13 @@ export class Simulation {
       liquid += h.liquidW;
     }
     this.itW = itW;
-    this.facility = facilityPower(this.plantParams, { itW, roomAirHeatW: room, rdhxHeatW: rdhx, liquidHeatW: liquid, ambientC: this.ambientC });
+    this.facility = facilityPower(this.plantParams, {
+      itW,
+      roomAirHeatW: room,
+      rdhxHeatW: rdhx,
+      liquidHeatW: liquid,
+      ambientC: this.ambientC,
+    });
   }
 }
 
@@ -1150,4 +1236,6 @@ function emptyCluster(): ClusterAggregates {
 }
 
 const now: () => number =
-  typeof performance !== 'undefined' && typeof performance.now === 'function' ? () => performance.now() : () => Date.now();
+  typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? () => performance.now()
+    : () => Date.now();

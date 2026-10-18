@@ -166,7 +166,12 @@ export type JobState =
   | 'failed'
   | 'cancelled';
 
-export const ACTIVE_JOB_STATES: readonly JobState[] = ['initializing', 'running', 'checkpointing', 'restarting'];
+export const ACTIVE_JOB_STATES: readonly JobState[] = [
+  'initializing',
+  'running',
+  'checkpointing',
+  'restarting',
+];
 
 export interface TrainingPlan {
   tp: number;
@@ -182,7 +187,14 @@ export interface TrainingPlan {
   modelFlopsPerStep: number;
   tokensPerStep: number;
   totalSteps: number;
-  memoryGB: { weights: number; grads: number; optimizer: number; activations: number; overhead: number; total: number };
+  memoryGB: {
+    weights: number;
+    grads: number;
+    optimizer: number;
+    activations: number;
+    overhead: number;
+    total: number;
+  };
   hbmGB: number;
   checkpointGB: number;
   tpBytesPerGpu: number;
@@ -192,6 +204,8 @@ export interface TrainingPlan {
   /** Estimated step time on idle, healthy hardware (s). */
   nominalStepS: number;
   nominalMfu: number;
+  /** Planner advisories (e.g. batch too small for the requested scale). */
+  notes: string[];
 }
 
 export interface InferencePlan {
@@ -307,8 +321,7 @@ export interface CommandError {
 }
 
 export type CommandResult =
-  | { ok: true; message: string; data?: unknown }
-  | { ok: false; error: CommandError };
+  { ok: true; message: string; data?: unknown } | { ok: false; error: CommandError };
 
 // ---- Snapshots ----------------------------------------------------------------------------
 
@@ -467,11 +480,25 @@ export interface TopologyInfo {
     switches: number[];
     designPeakW: number;
   }[];
-  nodes: { hostname: string; rack: number; platform: string; gpus: number; gpuModel: string; leafGroup: number; nvlDomain: number }[];
+  nodes: {
+    hostname: string;
+    rack: number;
+    platform: string;
+    gpus: number;
+    gpuModel: string;
+    leafGroup: number;
+    nvlDomain: number;
+  }[];
   switches: { name: string; tier: number; plane: number; model: string; rack: number }[];
   storage: { name: string; model: string; rack: number }[];
   gpuCount: number;
-  fabric: { topology: string; tiers: number; planes: number; switchModel: string | null; portSpeedGbps: number };
+  fabric: {
+    topology: string;
+    tiers: number;
+    planes: number;
+    switchModel: string | null;
+    portSpeedGbps: number;
+  };
 }
 
 // ---- Queries ------------------------------------------------------------------------------
@@ -527,7 +554,14 @@ export interface NodeDetail {
   inletC: number;
   cpu: { model: string; sockets: number; cores: number; util: number };
   memory: { totalGB: number; usedGB: number; speedMTs: number; type: string; dimms: number };
-  nics: { rail: number; model: string; speedGbps: number; up: boolean; leaf: string | null; txGbps: number }[];
+  nics: {
+    rail: number;
+    model: string;
+    speedGbps: number;
+    up: boolean;
+    leaf: string | null;
+    txGbps: number;
+  }[];
   storage: { model: string; count: number; capacityTB: number };
   gpus: GpuDetail[];
   stateSince: number;

@@ -79,8 +79,14 @@ export const ANNUAL_LOAD_FACTOR = 0.75;
 /** Extreme-day margin above the mean summer afternoon maximum (≈ ASHRAE 0.4 % design dry-bulb; assumption). */
 export const DESIGN_AMBIENT_MARGIN_C = 5;
 
-export function designAmbientC(climate: { annualMeanC: number; seasonalAmplitudeC: number; diurnalAmplitudeC: number }) {
-  return climate.annualMeanC + climate.seasonalAmplitudeC + climate.diurnalAmplitudeC + DESIGN_AMBIENT_MARGIN_C;
+export function designAmbientC(climate: {
+  annualMeanC: number;
+  seasonalAmplitudeC: number;
+  diurnalAmplitudeC: number;
+}) {
+  return (
+    climate.annualMeanC + climate.seasonalAmplitudeC + climate.diurnalAmplitudeC + DESIGN_AMBIENT_MARGIN_C
+  );
 }
 /** Optics + fibre per link end-to-end, by port speed (estimates, USD). */
 const OPTICS_COST_PER_LINK: Record<number, number> = { 200: 1_000, 400: 1_750, 800: 3_000 };
@@ -169,7 +175,8 @@ export function deriveMetrics(topo: Topology): DerivedMetrics {
   for (const sw of switches) networkUsd += sw.spec.costUsd.v;
   const linkCost = OPTICS_COST_PER_LINK[fabric.portSpeedGbps] ?? 2_000;
   for (let i = 0; i < topo.links.count; i++) {
-    const ports = topo.links.tier[i] === 0 ? 1 : topo.links.bandwidthGbps[i]! / Math.max(1, fabric.portSpeedGbps);
+    const ports =
+      topo.links.tier[i] === 0 ? 1 : topo.links.bandwidthGbps[i]! / Math.max(1, fabric.portSpeedGbps);
     networkUsd += ports * linkCost;
   }
   const swLat = fabric.switchSpec?.latencyNs.v ?? 0;
@@ -181,7 +188,9 @@ export function deriveMetrics(topo: Topology): DerivedMetrics {
   const viaSpine = sameLeaf + 2 * ls + 2 * swLat;
   const viaCore = viaSpine + 2 * sc + 2 * swLat;
   const bisectionPerPlane =
-    fabric.tiers === 0 ? 0 : (fabric.endpointsPerPlane * fabric.portSpeedGbps) / Math.max(1, fabric.oversubscription) / 2;
+    fabric.tiers === 0
+      ? 0
+      : (fabric.endpointsPerPlane * fabric.portSpeedGbps) / Math.max(1, fabric.oversubscription) / 2;
 
   // ---- Storage ---------------------------------------------------------------------------
   let storUsable = 0;
@@ -239,7 +248,8 @@ export function deriveMetrics(topo: Topology): DerivedMetrics {
   }
   const chiller = part('cooling', site.plant.chillerId);
   coolingUsd += site.plant.chillers * chiller.costUsd.v;
-  if (site.plant.dryCoolerId) coolingUsd += site.plant.dryCoolers * part('cooling', site.plant.dryCoolerId).costUsd.v;
+  if (site.plant.dryCoolerId)
+    coolingUsd += site.plant.dryCoolers * part('cooling', site.plant.dryCoolerId).costUsd.v;
   const ups = part('ups', site.ups.upsId);
   const upsUsd = site.ups.modules * ups.costUsdPerModule.v;
   const genUsd = site.generators.count * site.generators.unitMW * GENERATOR_USD_PER_MW;
@@ -265,7 +275,13 @@ export function deriveMetrics(topo: Topology): DerivedMetrics {
       scaleUpDomains: topo.nvlDomainCount,
     },
     compute: {
-      peakDense: { fp64: fp64 / 1000, tf32: tf32 / 1000, bf16: bf16 / 1000, fp8: fp8 / 1000, fp4: fp4 / 1000 },
+      peakDense: {
+        fp64: fp64 / 1000,
+        tf32: tf32 / 1000,
+        bf16: bf16 / 1000,
+        fp8: fp8 / 1000,
+        fp4: fp4 / 1000,
+      },
       peakSparseFp8: fp8Sparse / 1000,
       hbmTB: hbm / 1000,
       hbmBandwidthPBs: hbmBw / 1e6,

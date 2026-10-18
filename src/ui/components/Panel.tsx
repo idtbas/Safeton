@@ -24,7 +24,11 @@ export function Panel({
     <section className={cx('sf-panel', className)} style={style}>
       {(title || actions) && (
         <header className="sf-panel__header">
-          {icon && <span className="sf-muted" style={{ display: 'flex' }}>{icon}</span>}
+          {icon && (
+            <span className="sf-muted" style={{ display: 'flex' }}>
+              {icon}
+            </span>
+          )}
           <div className="sf-panel__title">
             {title}
             {subtitle && <span className="sf-panel__subtitle">{subtitle}</span>}

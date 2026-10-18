@@ -4,7 +4,12 @@
  */
 import { Simulation } from '../sim/simulation';
 import type { PerfStats } from '../sim/types';
-import { snapshotTransferables, type ClientMessage, type ControlSettings, type WorkerMessage } from './protocol';
+import {
+  snapshotTransferables,
+  type ClientMessage,
+  type ControlSettings,
+  type WorkerMessage,
+} from './protocol';
 
 type Post = (msg: WorkerMessage, transfer?: Transferable[]) => void;
 
@@ -33,7 +38,12 @@ export class EngineHost {
       const result = this.dispatch(msg);
       this.post({ kind: 'response', id: msg.id, ok: true, result });
     } catch (err) {
-      this.post({ kind: 'response', id: msg.id, ok: false, error: err instanceof Error ? err.message : String(err) });
+      this.post({
+        kind: 'response',
+        id: msg.id,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -100,7 +110,10 @@ export class EngineHost {
         this.tickLoop();
       } catch (err) {
         this.running = false;
-        this.post({ kind: 'fatal', error: err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err) });
+        this.post({
+          kind: 'fatal',
+          error: err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err),
+        });
       }
     };
     this.timer = setTimeout(loop, LOOP_INTERVAL_MS);
@@ -147,7 +160,11 @@ export class EngineHost {
     const t = now();
     if (!force && t - this.lastSnapshot < 1000 / this.snapshotHz) return;
     this.lastSnapshot = t;
-    const snapshot = sim.snapshot(this.perf(), { running: this.running, timeScale: this.timeScale }, this.lastSeq);
+    const snapshot = sim.snapshot(
+      this.perf(),
+      { running: this.running, timeScale: this.timeScale },
+      this.lastSeq,
+    );
     if (snapshot.events.length > 0) this.lastSeq = snapshot.events[snapshot.events.length - 1]!.seq;
     this.post({ kind: 'snapshot', snapshot }, snapshotTransferables(snapshot));
   }
@@ -160,4 +177,6 @@ export class EngineHost {
 }
 
 const now: () => number =
-  typeof performance !== 'undefined' && typeof performance.now === 'function' ? () => performance.now() : () => Date.now();
+  typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? () => performance.now()
+    : () => Date.now();

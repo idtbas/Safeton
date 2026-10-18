@@ -80,7 +80,14 @@ export function Sparkline({
         <circle className="sf-sparkline__end" cx={width} cy={geom.y(last)} r={3} />
       ) : (
         <>
-          <line x1={geom.x(hover)} x2={geom.x(hover)} y1={0} y2={height} stroke="var(--line-3)" strokeWidth={1} />
+          <line
+            x1={geom.x(hover)}
+            x2={geom.x(hover)}
+            y1={0}
+            y2={height}
+            stroke="var(--line-3)"
+            strokeWidth={1}
+          />
           <circle className="sf-sparkline__end" cx={geom.x(hover)} cy={geom.y(hv!)} r={3} />
           {format && (
             <text

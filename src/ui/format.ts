@@ -8,7 +8,12 @@ let timeZone = 'Europe/Berlin';
 let tempUnit: 'C' | 'F' = 'C';
 let hour12 = false;
 
-export function configureFormatting(opts: { locale?: string; timeZone?: string; temperatureUnit?: 'C' | 'F'; hourCycle?: 'h23' | 'h12' }) {
+export function configureFormatting(opts: {
+  locale?: string;
+  timeZone?: string;
+  temperatureUnit?: 'C' | 'F';
+  hourCycle?: 'h23' | 'h12';
+}) {
   if (opts.locale) locale = opts.locale;
   if (opts.timeZone) timeZone = opts.timeZone;
   if (opts.temperatureUnit) tempUnit = opts.temperatureUnit;
@@ -130,7 +135,8 @@ export function compact(v: number): string {
 export function currency(v: number, cur: 'EUR' | 'USD' = 'EUR'): string {
   const a = Math.abs(v);
   const c = cur === 'EUR' ? '€' : '$';
-  if (a >= 1e9) return `${formatNumber(v / 1e9, 2, 2)} Mrd ${c}`.replace('Mrd', locale.startsWith('de') ? 'Mrd.' : 'B');
+  if (a >= 1e9)
+    return `${formatNumber(v / 1e9, 2, 2)} Mrd ${c}`.replace('Mrd', locale.startsWith('de') ? 'Mrd.' : 'B');
   if (a >= 1e6) return `${formatNumber(v / 1e6, 1, 1)} ${locale.startsWith('de') ? 'Mio.' : 'M'} ${c}`;
   if (a >= 1e3) return `${formatNumber(v / 1e3, 1, 1)} ${locale.startsWith('de') ? 'Tsd.' : 'K'} ${c}`;
   return `${formatNumber(v, 0)} ${c}`;
@@ -143,7 +149,9 @@ export function percent(fraction: number, digits = 1): string {
 
 export function temperature(c: number, digits = 1): string {
   if (!Number.isFinite(c)) return '—';
-  return tempUnit === 'F' ? `${formatNumber((c * 9) / 5 + 32, digits, digits)} °F` : `${formatNumber(c, digits, digits)} °C`;
+  return tempUnit === 'F'
+    ? `${formatNumber((c * 9) / 5 + 32, digits, digits)} °F`
+    : `${formatNumber(c, digits, digits)} °C`;
 }
 
 export function duration(seconds: number | null | undefined): string {
@@ -172,5 +180,11 @@ export function dateTime(epochMs: number, withSeconds = true): string {
 }
 
 export function clockTime(epochMs: number): string {
-  return new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12 }).format(epochMs);
+  return new Intl.DateTimeFormat(locale, {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12,
+  }).format(epochMs);
 }

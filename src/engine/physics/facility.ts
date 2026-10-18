@@ -82,10 +82,20 @@ export function facilityPower(plant: FacilityPlantParams, loads: FacilityLoads):
   const cop = chillerCop(plant.chiller, ambientC);
 
   const freeChw = plant.freeCooling
-    ? economiserFraction(ambientC, plant.chilledWaterSupplyC, CHW_FULL_FREE_APPROACH_K, CHW_PARTIAL_FREE_APPROACH_K)
+    ? economiserFraction(
+        ambientC,
+        plant.chilledWaterSupplyC,
+        CHW_FULL_FREE_APPROACH_K,
+        CHW_PARTIAL_FREE_APPROACH_K,
+      )
     : 0;
   const freeWw = plant.dryCooler
-    ? economiserFraction(ambientC, plant.warmWaterSupplyC, WW_FULL_FREE_APPROACH_K, WW_PARTIAL_FREE_APPROACH_K)
+    ? economiserFraction(
+        ambientC,
+        plant.warmWaterSupplyC,
+        WW_FULL_FREE_APPROACH_K,
+        WW_PARTIAL_FREE_APPROACH_K,
+      )
     : 0;
 
   const chilledLoad = roomAirHeatW + rdhxHeatW;

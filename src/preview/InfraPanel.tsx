@@ -20,7 +20,10 @@ export function InfraPanel() {
     setBusy(true);
     try {
       const res = await loadInfrastructure(TEMPLATES.find((t) => t.id === templateId)!.build());
-      if (!res.ok) useNotificationStore.getState().push({ severity: 'error', title: 'Infrastructure rejected', body: res.message });
+      if (!res.ok)
+        useNotificationStore
+          .getState()
+          .push({ severity: 'error', title: 'Infrastructure rejected', body: res.message });
     } finally {
       setBusy(false);
       setConfirm(false);
@@ -62,30 +65,54 @@ export function InfraPanel() {
             <div className="sf-label">Compute</div>
             <KeyValue
               items={[
-                ['GPUs', `${m.counts.gpus.toLocaleString()} × ${topo.nodes[0]?.gpuModel ?? ''}`],
-                ['Nodes / racks', `${m.counts.nodes.toLocaleString()} / ${m.counts.racks.toLocaleString()}`],
+                ['GPUs', `${fmt.formatNumber(m.counts.gpus)} × ${topo.nodes[0]?.gpuModel ?? ''}`],
+                [
+                  'Nodes / racks',
+                  `${fmt.formatNumber(m.counts.nodes)} / ${fmt.formatNumber(m.counts.racks)}`,
+                ],
                 ['Peak BF16 (dense)', `${fmt.formatNumber(m.compute.peakDense.bf16, 1, 1)} PFLOP/s`],
                 ['Peak FP8 (dense)', `${fmt.formatNumber(m.compute.peakDense.fp8, 1, 1)} PFLOP/s`],
-                ['HBM', `${fmt.q(fmt.bytesGB(m.compute.hbmTB * 1000))} · ${fmt.formatNumber(m.compute.hbmBandwidthPBs, 1, 1)} PB/s`],
-                ['Scale-up domains', m.counts.scaleUpDomains.toLocaleString()],
+                [
+                  'HBM',
+                  `${fmt.q(fmt.bytesGB(m.compute.hbmTB * 1000))} · ${fmt.formatNumber(m.compute.hbmBandwidthPBs, 1, 1)} PB/s`,
+                ],
+                ['Scale-up domains', fmt.formatNumber(m.counts.scaleUpDomains)],
               ]}
             />
             <div className="sf-label">Fabric & storage</div>
             <KeyValue
               items={[
-                ['Topology', `${m.network.topology}, ${m.network.tiers}-tier, ${m.network.planes} plane${m.network.planes === 1 ? '' : 's'}`],
-                ['Switches', `${m.counts.switches.toLocaleString()} × ${m.network.switchModel ?? '—'}`],
+                [
+                  'Topology',
+                  `${m.network.topology}, ${m.network.tiers}-tier, ${m.network.planes} plane${m.network.planes === 1 ? '' : 's'}`,
+                ],
+                ['Switches', `${fmt.formatNumber(m.counts.switches)} × ${m.network.switchModel ?? '—'}`],
                 ['Bisection', `${fmt.q(fmt.bandwidthGbps(m.network.bisectionTbps * 1000))}`],
-                ['Latency', `${fmt.formatNumber(m.network.latencyUs.sameLeaf, 2, 2)} µs leaf${m.network.latencyUs.viaSpine ? ` · ${fmt.formatNumber(m.network.latencyUs.viaSpine, 2, 2)} µs spine` : ''}`],
-                ['Shared storage', `${fmt.formatNumber(m.storage.usablePB, 1, 1)} PB · ${fmt.formatNumber(m.storage.writeGBs, 0)} GB/s write`],
+                [
+                  'Latency',
+                  `${fmt.formatNumber(m.network.latencyUs.sameLeaf, 2, 2)} µs leaf${m.network.latencyUs.viaSpine ? ` · ${fmt.formatNumber(m.network.latencyUs.viaSpine, 2, 2)} µs spine` : ''}`,
+                ],
+                [
+                  'Shared storage',
+                  `${fmt.formatNumber(m.storage.usablePB, 1, 1)} PB · ${fmt.formatNumber(m.storage.writeGBs, 0)} GB/s write`,
+                ],
               ]}
             />
             <div className="sf-label">Facility (design)</div>
             <KeyValue
               items={[
-                ['IT peak / idle', `${fmt.q(fmt.power(m.power.itPeakKW * 1000))} / ${fmt.q(fmt.power(m.power.itIdleKW * 1000))}`],
-                ['Facility peak', `${fmt.q(fmt.power(m.power.facilityPeakKW * 1000))} @ ${fmt.formatNumber(m.power.designAmbientC, 1, 1)} °C`],
-                ['PUE annual / peak', `${fmt.formatNumber(m.power.pueAnnual, 3, 3)} / ${fmt.formatNumber(m.power.pueAtPeak, 3, 3)}`],
+                [
+                  'IT peak / idle',
+                  `${fmt.q(fmt.power(m.power.itPeakKW * 1000))} / ${fmt.q(fmt.power(m.power.itIdleKW * 1000))}`,
+                ],
+                [
+                  'Facility peak',
+                  `${fmt.q(fmt.power(m.power.facilityPeakKW * 1000))} @ ${fmt.formatNumber(m.power.designAmbientC, 1, 1)} °C`,
+                ],
+                [
+                  'PUE annual / peak',
+                  `${fmt.formatNumber(m.power.pueAnnual, 3, 3)} / ${fmt.formatNumber(m.power.pueAtPeak, 3, 3)}`,
+                ],
                 ['Max rack', fmt.q(fmt.power(m.power.maxRackKW * 1000))],
                 ['CapEx (est.)', fmt.currency(m.cost.totalUsd, 'USD')],
                 ['Energy / year', fmt.currency(m.cost.energyEurPerYear)],
@@ -108,12 +135,22 @@ export function InfraPanel() {
           </>
         }
       />
-      <Dialog open={showIssues} onClose={() => setShowIssues(false)} title="Engineering validation" description={topo?.spec.name} width={720}>
+      <Dialog
+        open={showIssues}
+        onClose={() => setShowIssues(false)}
+        title="Engineering validation"
+        description={topo?.spec.name}
+        width={720}
+      >
         <div className="pv-issues">
           {report?.issues.length === 0 && <p className="sf-muted">No findings.</p>}
           {report?.issues.map((i, k) => (
             <div key={k} className="pv-issue">
-              <Badge tone={i.severity === 'error' ? 'critical' : i.severity === 'warning' ? 'warning' : 'info'}>{i.severity}</Badge>
+              <Badge
+                tone={i.severity === 'error' ? 'critical' : i.severity === 'warning' ? 'warning' : 'info'}
+              >
+                {i.severity}
+              </Badge>
               <div>
                 <div className="mono" style={{ fontSize: 'var(--fs-xs)' }}>
                   {i.code} <span className="sf-muted">{i.path}</span>

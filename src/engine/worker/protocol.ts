@@ -44,8 +44,7 @@ export interface InitResult {
 }
 
 export type PlanQueryResult =
-  | { ok: true; plan: TrainingPlan | InferencePlan }
-  | { ok: false; code: string; message: string };
+  { ok: true; plan: TrainingPlan | InferencePlan } | { ok: false; code: string; message: string };
 
 export interface QueryResultMap {
   topology: TopologyInfo;

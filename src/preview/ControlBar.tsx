@@ -49,7 +49,12 @@ export function ControlBar() {
             { value: '100', label: 'Failures 100×' },
             { value: '1000', label: 'Failures 1000× (chaos)' },
             ...(![0, 1, 10, 100, 1000].includes(snap.failureRateMultiplier)
-              ? [{ value: String(snap.failureRateMultiplier), label: `Failures ${snap.failureRateMultiplier}×` }]
+              ? [
+                  {
+                    value: String(snap.failureRateMultiplier),
+                    label: `Failures ${snap.failureRateMultiplier}×`,
+                  },
+                ]
               : []),
           ]}
           onChange={(v) => update({ simulation: { failureRateMultiplier: Number(v) } })}

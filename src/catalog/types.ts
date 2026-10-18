@@ -21,8 +21,10 @@ export interface Q {
   readonly note?: string;
 }
 
-export const vendor = (v: number, note?: string): Q => (note ? { v, src: 'vendor', note } : { v, src: 'vendor' });
-export const est = (v: number, note?: string): Q => (note ? { v, src: 'estimate', note } : { v, src: 'estimate' });
+export const vendor = (v: number, note?: string): Q =>
+  note ? { v, src: 'vendor', note } : { v, src: 'vendor' };
+export const est = (v: number, note?: string): Q =>
+  note ? { v, src: 'estimate', note } : { v, src: 'estimate' };
 export const assume = (v: number, note?: string): Q =>
   note ? { v, src: 'assumption', note } : { v, src: 'assumption' };
 

@@ -155,7 +155,11 @@ export function updateNetwork(sim: Simulation): void {
     sw.trafficGbps[s] = switchUp ? traffic : 0;
     sw.util[s] = switchUp ? Math.min(1.5, util) : 0;
     const typical = info.spec.powerTypicalW.v;
-    sw.powerW[s] = failed[s] ? typical * 0.3 : adminUp[s] ? typical * (0.85 + 0.15 * Math.min(1, util)) : typical * 0.5;
+    sw.powerW[s] = failed[s]
+      ? typical * 0.3
+      : adminUp[s]
+        ? typical * (0.85 + 0.15 * Math.min(1, util))
+        : typical * 0.5;
   }
 
   // Congestion factor per training job: worst demand/capacity ratio over its leaves and pods.

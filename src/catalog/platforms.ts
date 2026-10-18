@@ -229,6 +229,9 @@ export const RACK_SYSTEMS: readonly RackSystemSpec[] = [
     rackId: 'rack-mgx-48u',
     weightKg: est(1360),
     maxPowerKW: est(132),
-    costUsd: est(400_000, 'Rack integration: MGX rack, NVLink switch trays, power shelves, manifolds (compute trays costed bottom-up)'),
+    costUsd: est(
+      400_000,
+      'Rack integration: MGX rack, NVLink switch trays, power shelves, manifolds (compute trays costed bottom-up)',
+    ),
   },
 ];

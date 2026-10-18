@@ -19,7 +19,11 @@ export function Progress({
   const pct = Math.max(0, Math.min(1, value ?? 0)) * 100;
   return (
     <div
-      className={cx('sf-progress', thin && 'sf-progress--thin', indeterminate && 'sf-progress--indeterminate')}
+      className={cx(
+        'sf-progress',
+        thin && 'sf-progress--thin',
+        indeterminate && 'sf-progress--indeterminate',
+      )}
       data-tone={tone === 'accent' ? undefined : tone}
       role="progressbar"
       aria-label={label}
@@ -33,14 +37,31 @@ export function Progress({
 }
 
 /** Meter whose tone escalates with value (e.g. utilisation against thresholds). */
-export function Meter({ value, warn = 0.8, crit = 0.95, label }: { value: number; warn?: number; crit?: number; label?: string }) {
+export function Meter({
+  value,
+  warn = 0.8,
+  crit = 0.95,
+  label,
+}: {
+  value: number;
+  warn?: number;
+  crit?: number;
+  label?: string;
+}) {
   const tone: ProgressTone = value >= crit ? 'critical' : value >= warn ? 'warning' : 'accent';
   return <Progress value={value} tone={tone} label={label} />;
 }
 
 export function Segments({ total, on, label }: { total: number; on: number; label?: string }) {
   return (
-    <div className="sf-segments" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={total} aria-valuenow={on}>
+    <div
+      className="sf-segments"
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={on}
+    >
       {Array.from({ length: total }, (_, i) => (
         <span key={i} className="sf-segments__seg" data-on={i < on || undefined} />
       ))}

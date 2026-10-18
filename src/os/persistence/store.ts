@@ -59,7 +59,13 @@ class IdbDocumentStore implements DocumentStore {
       await this.db.put('quarantine', { id, key, reason, quarantinedAt: new Date().toISOString(), raw });
     } catch {
       // Raw value may not be cloneable; keep the reason at least.
-      await this.db.put('quarantine', { id, key, reason, quarantinedAt: new Date().toISOString(), raw: null });
+      await this.db.put('quarantine', {
+        id,
+        key,
+        reason,
+        quarantinedAt: new Date().toISOString(),
+        raw: null,
+      });
     }
     await this.db.delete('docs', key);
   }
@@ -87,7 +93,13 @@ export class MemoryDocumentStore implements DocumentStore {
     this.docs.delete(key);
   }
   async quarantine(key: DocKey, raw: unknown, reason: string) {
-    this.quarantined.push({ id: `${key}-${Date.now()}`, key, reason, quarantinedAt: new Date().toISOString(), raw });
+    this.quarantined.push({
+      id: `${key}-${Date.now()}`,
+      key,
+      reason,
+      quarantinedAt: new Date().toISOString(),
+      raw,
+    });
     this.docs.delete(key);
   }
   async listQuarantine() {

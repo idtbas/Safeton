@@ -95,7 +95,12 @@ export function rackCoolingToNodeCooling(cooling: RackCooling): CoolingMode {
 }
 
 /** Effective DIMM speed: limited by CPU support and derated at two DIMMs per channel. */
-export function effectiveMemorySpeed(cpu: CpuSpec, dimm: DimmSpec | null, dimmCount: number, cpuCount: number) {
+export function effectiveMemorySpeed(
+  cpu: CpuSpec,
+  dimm: DimmSpec | null,
+  dimmCount: number,
+  cpuCount: number,
+) {
   if (!dimm) return cpu.memory.maxMTs;
   const base = Math.min(dimm.speedMTs, cpu.memory.maxMTs);
   const perChannel = dimmCount / (cpu.memory.channels * cpuCount);
@@ -110,12 +115,15 @@ export function nodePowerBreakdown(cfg: ResolvedNodeConfig, s: NodeLoadState): N
     : 0;
   const storageW =
     cfg.osDriveCount * cfg.osDrive.powerIdleW.v +
-    cfg.dataDriveCount * linearPower(cfg.dataDrive.powerIdleW.v, cfg.dataDrive.powerActiveW.v, s.storageActivity);
+    cfg.dataDriveCount *
+      linearPower(cfg.dataDrive.powerIdleW.v, cfg.dataDrive.powerActiveW.v, s.storageActivity);
   // Adapter power is ~70 % static (SerDes, PHY) and ~30 % traffic dependent.
   const networkW =
     cfg.rails * cfg.computeNic.powerW.v * (0.7 + 0.3 * s.networkActivity) +
     cfg.storageNicCount * cfg.storageNic.powerW.v * (0.7 + 0.3 * s.storageActivity);
-  const nvswitchW = cfg.nvswitch ? cfg.nvswitchCount * cfg.nvswitch.powerW.v * (0.4 + 0.6 * s.nvlinkActivity) : 0;
+  const nvswitchW = cfg.nvswitch
+    ? cfg.nvswitchCount * cfg.nvswitch.powerW.v * (0.4 + 0.6 * s.nvlinkActivity)
+    : 0;
   const fanW = cfg.fanCount * s.fansHealthy * fanPowerW(cfg.fanMaxW, s.fanDuty);
   // VRM and conversion losses on the baseboard scale with GPU load (60 % static).
   const baseboardW = cfg.baseboardW * (0.6 + 0.4 * s.gpuActivity);
@@ -160,7 +168,10 @@ const PEAK_STATE = (cfg: ResolvedNodeConfig): NodeLoadState => ({
 export function resolveNodeConfig(template: RackTemplate): ResolvedNodeConfig {
   const sys = template.system;
   const rackSystem = sys.kind === 'rack-system' ? part('rack-system', sys.rackSystemId) : null;
-  const platform = part('platform', rackSystem ? rackSystem.trayPlatformId : sys.kind === 'platform' ? sys.platformId : '');
+  const platform = part(
+    'platform',
+    rackSystem ? rackSystem.trayPlatformId : sys.kind === 'platform' ? sys.platformId : '',
+  );
   const o = sys.overrides ?? {};
   const cooling = rackCoolingToNodeCooling(template.cooling);
 
@@ -179,9 +190,7 @@ export function resolveNodeConfig(template: RackTemplate): ResolvedNodeConfig {
   const storageNic = part('nic', platform.storageNic.id);
   const gpuPowerLimitW = o.gpuPowerLimitW ?? gpu.power.tdpW.v;
 
-  const hostMemoryGB = dimm
-    ? dimm.capacityGB * dimmCount
-    : cpu.memory.onPackageGB.v * platform.cpu.count;
+  const hostMemoryGB = dimm ? dimm.capacityGB * dimmCount : cpu.memory.onPackageGB.v * platform.cpu.count;
 
   const key = [
     platform.id,
@@ -226,7 +235,10 @@ export function resolveNodeConfig(template: RackTemplate): ResolvedNodeConfig {
     psuRequired: 0,
     // Liquid-cooled variants keep a reduced set of fans for residual air (DIMMs, NICs, PSUs).
     fanCount: platform.fans.count,
-    fanMaxW: cooling === 'liquid' && platform.defaultCooling === 'air' ? platform.fans.maxPowerW.v * 0.3 : platform.fans.maxPowerW.v,
+    fanMaxW:
+      cooling === 'liquid' && platform.defaultCooling === 'air'
+        ? platform.fans.maxPowerW.v * 0.3
+        : platform.fans.maxPowerW.v,
     baseboardW: platform.baseboardW.v,
     scaleUpDomainGpus: platform.scaleUpDomainGpus,
     rackUnits: platform.rackUnits,

@@ -25,7 +25,12 @@ export function PersistencePanel() {
       a.download = `safeton-export-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      push({ severity: 'notice', title: 'Export created', body: `${fmt.q(fmt.bytesGB(text.length / 1e9))} written`, source: 'kernel' });
+      push({
+        severity: 'notice',
+        title: 'Export created',
+        body: `${fmt.q(fmt.bytesGB(text.length / 1e9))} written`,
+        source: 'kernel',
+      });
     } finally {
       setBusy(null);
     }
@@ -35,7 +40,12 @@ export function PersistencePanel() {
     setBusy('import');
     try {
       const res = await importSystem(await file.text());
-      push({ severity: res.ok ? 'notice' : 'error', title: res.ok ? 'Import complete' : 'Import rejected', body: res.message, source: 'kernel' });
+      push({
+        severity: res.ok ? 'notice' : 'error',
+        title: res.ok ? 'Import complete' : 'Import rejected',
+        body: res.message,
+        source: 'kernel',
+      });
     } finally {
       setBusy(null);
     }
@@ -48,17 +58,31 @@ export function PersistencePanel() {
           items={[
             ['Backend', storage === 'indexeddb' ? 'IndexedDB (safeton v1)' : 'Volatile memory'],
             ['Last save', lastSaved ? fmt.clockTime(lastSaved) : '—'],
-            ['Status', saveError ? <span style={{ color: 'var(--status-serious)' }}>{saveError}</span> : 'OK'],
+            [
+              'Status',
+              saveError ? <span style={{ color: 'var(--status-serious)' }}>{saveError}</span> : 'OK',
+            ],
           ]}
         />
         <div className="pv-btn-row">
-          <Button icon={<Save size={13} />} loading={busy === 'save'} onClick={() => { setBusy('save'); void saveNow().finally(() => setBusy(null)); }}>
+          <Button
+            icon={<Save size={13} />}
+            loading={busy === 'save'}
+            onClick={() => {
+              setBusy('save');
+              void saveNow().finally(() => setBusy(null));
+            }}
+          >
             Save now
           </Button>
           <Button icon={<Download size={13} />} loading={busy === 'export'} onClick={() => void doExport()}>
             Export
           </Button>
-          <Button icon={<Upload size={13} />} loading={busy === 'import'} onClick={() => fileRef.current?.click()}>
+          <Button
+            icon={<Upload size={13} />}
+            loading={busy === 'import'}
+            onClick={() => fileRef.current?.click()}
+          >
             Import
           </Button>
           <input

@@ -44,7 +44,10 @@ export function encodeJson(value: unknown): string {
     const name = typedName(v);
     if (name) {
       const arr = v as ArrayBufferView;
-      return { __typed: name, b64: toBase64(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength)) } satisfies EncodedTyped;
+      return {
+        __typed: name,
+        b64: toBase64(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength)),
+      } satisfies EncodedTyped;
     }
     return v;
   });

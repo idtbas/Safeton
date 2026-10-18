@@ -23,7 +23,11 @@ function Toast({ id }: { id: number }) {
   if (!n) return null;
   const { color, Icon } = TONE[n.severity];
   return (
-    <div className="sf-toast" role={n.severity === 'critical' ? 'alert' : 'status'} style={{ ['--toast-color' as string]: color }}>
+    <div
+      className="sf-toast"
+      role={n.severity === 'critical' ? 'alert' : 'status'}
+      style={{ ['--toast-color' as string]: color }}
+    >
       <Icon className="sf-toast__icon" size={16} aria-hidden />
       <div style={{ minWidth: 0 }}>
         <div className="sf-toast__title">
@@ -32,7 +36,14 @@ function Toast({ id }: { id: number }) {
         </div>
         <div className="sf-toast__body">{n.body}</div>
       </div>
-      <Button variant="ghost" size="sm" iconOnly icon={<X size={13} />} aria-label="Dismiss" onClick={() => dismiss(id)} />
+      <Button
+        variant="ghost"
+        size="sm"
+        iconOnly
+        icon={<X size={13} />}
+        aria-label="Dismiss"
+        onClick={() => dismiss(id)}
+      />
     </div>
   );
 }

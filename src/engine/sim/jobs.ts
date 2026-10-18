@@ -6,6 +6,7 @@
  * and memory, and per-node CPU / NIC / NVLink / storage activity, which the physics phase
  * turns into power and heat.
  */
+import { model } from '../../catalog';
 import type { ResolvedNodeConfig } from '../model/resolve';
 import type { Simulation } from './simulation';
 import {
@@ -20,7 +21,13 @@ import {
   type TrainingJobSpec,
   type TrainingPlan,
 } from './types';
-import { inferenceTick, planInference, planTraining, trainingStep, type StepBreakdown } from './workload-model';
+import {
+  inferenceTick,
+  planInference,
+  planTraining,
+  trainingStep,
+  type StepBreakdown,
+} from './workload-model';
 
 const NCCL_INIT_BASE_S = 45;
 const NCCL_INIT_PER_LOG2_S = 12;
@@ -48,7 +55,8 @@ export function emptyMetrics(): JobMetrics {
   };
 }
 
-const isTraining = (job: Job): job is Job & { spec: TrainingJobSpec; plan: TrainingPlan } => job.spec.kind === 'training';
+const isTraining = (job: Job): job is Job & { spec: TrainingJobSpec; plan: TrainingPlan } =>
+  job.spec.kind === 'training';
 const isInference = (job: Job): job is Job & { spec: InferenceJobSpec; plan: InferencePlan } =>
   job.spec.kind === 'inference';
 
@@ -67,26 +75,38 @@ export function submitJob(sim: Simulation, spec: JobSpec): CommandResult {
     return { ok: false, error: { code: 'JOB_NAME_INVALID', message: 'Job name must be 1–64 characters' } };
   }
   const result =
-    spec.kind === 'training' ? planTraining(spec, cfg, sim.topo.fabric.portSpeedGbps) : planInference(spec, cfg);
+    spec.kind === 'training'
+      ? planTraining(spec, cfg, sim.topo.fabric.portSpeedGbps)
+      : planInference(spec, cfg);
   if (!result.ok) return { ok: false, error: { code: result.code, message: result.message } };
   const plan = result.plan;
   const total = sim.topo.nodes.length;
   if (plan.nodes > total) {
     return {
       ok: false,
-      error: { code: 'JOB_EXCEEDS_CLUSTER', message: `Job needs ${plan.nodes} nodes, the cluster has ${total}` },
+      error: {
+        code: 'JOB_EXCEEDS_CLUSTER',
+        message: `Job needs ${plan.nodes} nodes, the cluster has ${total}`,
+      },
     };
   }
   if (spec.kind === 'training' && plan.nodes > 1 && sim.topo.fabric.tiers === 0) {
     return {
       ok: false,
-      error: { code: 'JOB_NO_FABRIC', message: 'Multi-node training requires a backend fabric; this site has none' },
+      error: {
+        code: 'JOB_NO_FABRIC',
+        message: 'Multi-node training requires a backend fabric; this site has none',
+      },
     };
   }
   if (spec.kind === 'training') {
-    if (spec.totalTokens <= 0) return { ok: false, error: { code: 'JOB_TOKENS_INVALID', message: 'Token target must be positive' } };
+    if (spec.totalTokens <= 0)
+      return { ok: false, error: { code: 'JOB_TOKENS_INVALID', message: 'Token target must be positive' } };
     if (spec.checkpointIntervalMin < 1) {
-      return { ok: false, error: { code: 'JOB_CKPT_INVALID', message: 'Checkpoint interval must be at least 1 minute' } };
+      return {
+        ok: false,
+        error: { code: 'JOB_CKPT_INVALID', message: 'Checkpoint interval must be at least 1 minute' },
+      };
     }
   } else if (spec.requestRate < 0) {
     return { ok: false, error: { code: 'JOB_RATE_INVALID', message: 'Request rate must be ≥ 0' } };
@@ -143,7 +163,13 @@ export function cancelJob(sim: Simulation, jobId: number): CommandResult {
   job.reason = 'Cancelled by operator';
   job.endedAt = sim.time;
   sim.congestion.delete(jobId);
-  sim.emit('notice', 'job', String(jobId), 'JOB_CANCELLED', `Job ${jobId} cancelled (scancel), resources released`);
+  sim.emit(
+    'notice',
+    'job',
+    String(jobId),
+    'JOB_CANCELLED',
+    `Job ${jobId} cancelled (scancel), resources released`,
+  );
   return { ok: true, message: `Cancelled job ${jobId}` };
 }
 
@@ -183,7 +209,8 @@ function selectNodes(sim: Simulation, candidates: number[], need: number): numbe
 function initTimeS(sim: Simulation, job: Job, nodes: number): number {
   if (isTraining(job)) {
     let t = NCCL_INIT_BASE_S + NCCL_INIT_PER_LOG2_S * Math.log2(Math.max(1, nodes));
-    if (job.requeued && job.lastCheckpointStep > 0) t += job.plan.checkpointGB / storageBandwidthGBs(sim, nodes, 'read');
+    if (job.requeued && job.lastCheckpointStep > 0)
+      t += job.plan.checkpointGB / storageBandwidthGBs(sim, nodes, 'read');
     return t;
   }
   const plan = job.plan as InferencePlan;
@@ -210,7 +237,8 @@ export function scheduleJobs(sim: Simulation): void {
   const replacements: Job[] = [];
   for (const job of sim.jobs.values()) {
     if (job.state === 'pending') pending.push(job);
-    else if (isInference(job) && job.state === 'running' && job.nodes.length < job.plan.nodes) replacements.push(job);
+    else if (isInference(job) && job.state === 'running' && job.nodes.length < job.plan.nodes)
+      replacements.push(job);
   }
   if (pending.length === 0 && replacements.length === 0) return;
   pending.sort((a, b) => b.priority - a.priority || a.submittedAt - b.submittedAt || a.id - b.id);
@@ -233,7 +261,13 @@ export function scheduleJobs(sim: Simulation): void {
       job.nodes.push(i);
       job.nodeInitS.push(init);
     }
-    sim.emit('info', 'scheduler', String(job.id), 'JOB_REPLICA_RESCHEDULED', `Job ${job.id}: ${pick.length} replacement node(s) allocated (${pick.map((i) => sim.topo.nodes[i]!.hostname).join(', ')})`);
+    sim.emit(
+      'info',
+      'scheduler',
+      String(job.id),
+      'JOB_REPLICA_RESCHEDULED',
+      `Job ${job.id}: ${pick.length} replacement node(s) allocated (${pick.map((i) => sim.topo.nodes[i]!.hostname).join(', ')})`,
+    );
   }
 
   for (const job of pending) {
@@ -279,7 +313,13 @@ export function handleNodeLost(sim: Simulation, jobId: number, nodeIdx: number, 
   }
   if (isInference(job)) {
     if (job.state === 'running' || job.state === 'initializing') {
-      sim.emit('warning', 'job', String(jobId), 'JOB_REPLICA_LOST', `Job ${jobId}: replicas on ${sim.topo.nodes[nodeIdx]!.hostname} lost — ${reason}`);
+      sim.emit(
+        'warning',
+        'job',
+        String(jobId),
+        'JOB_REPLICA_LOST',
+        `Job ${jobId}: replicas on ${sim.topo.nodes[nodeIdx]!.hostname} lost — ${reason}`,
+      );
     }
     return;
   }
@@ -292,7 +332,12 @@ export function crashTrainingJob(sim: Simulation, job: Job, reason: string): voi
   if (job.state !== 'running' && job.state !== 'checkpointing' && job.state !== 'initializing') return;
   const lost = job.step - job.lastCheckpointStep;
   job.lostSteps += lost;
-  job.productiveS = Math.max(0, job.productiveS - lost * (job.metrics.stepTimeS || job.plan.nominalStepS) - job.stepFraction * (job.metrics.stepTimeS || 0));
+  job.productiveS = Math.max(
+    0,
+    job.productiveS -
+      lost * (job.metrics.stepTimeS || job.plan.nominalStepS) -
+      job.stepFraction * (job.metrics.stepTimeS || 0),
+  );
   job.step = job.lastCheckpointStep;
   job.tokensDone = job.step * job.plan.tokensPerStep;
   job.stepFraction = 0;
@@ -318,7 +363,13 @@ function completeJob(sim: Simulation, job: Job): void {
   job.endedAt = sim.time;
   job.reason = null;
   sim.congestion.delete(job.id);
-  sim.emit('notice', 'job', String(job.id), 'JOB_COMPLETED', `Job ${job.id} completed: ${(job.tokensDone / 1e9).toFixed(2)} B tokens, ${job.restarts} restart(s), goodput ${(100 * job.productiveS / Math.max(1, job.allocatedS)).toFixed(1)} %`);
+  sim.emit(
+    'notice',
+    'job',
+    String(job.id),
+    'JOB_COMPLETED',
+    `Job ${job.id} completed: ${(job.tokensDone / 1e9).toFixed(2)} B tokens, ${job.restarts} restart(s), goodput ${((100 * job.productiveS) / Math.max(1, job.allocatedS)).toFixed(1)} %`,
+  );
 }
 
 interface GpuLoad {
@@ -405,17 +456,27 @@ export function advanceJobs(sim: Simulation): void {
   c.gpusAllocated = 0;
   c.storageReadGBs = 0;
   c.storageWriteGBs = 0;
+  c.achievedFlops = 0;
 
   const cfg = sim.primaryConfig();
   if (!cfg) return;
   const linkGbps = topo.fabric.portSpeedGbps;
-  const nicBytesPerS = (Math.min(cfg.computeNic.portSpeedGbps, linkGbps || cfg.computeNic.portSpeedGbps) / 8) * 1e9;
+  const nicBytesPerS =
+    (Math.min(cfg.computeNic.portSpeedGbps, linkGbps || cfg.computeNic.portSpeedGbps) / 8) * 1e9;
   const nvlBytesPerS = (cfg.gpu.interconnect.bandwidthGBs.v / 2) * 1e9;
-  const checkpointing = [...sim.jobs.values()].filter((j) => j.state === 'checkpointing' || j.ckptWriteRemainingS > 0).length;
+  const checkpointing = [...sim.jobs.values()].filter(
+    (j) => j.state === 'checkpointing' || j.ckptWriteRemainingS > 0,
+  ).length;
 
   const ordered = [...sim.jobs.values()].sort((a, b) => a.id - b.id);
   for (const job of ordered) {
-    if (job.state === 'pending' || job.state === 'completed' || job.state === 'failed' || job.state === 'cancelled') continue;
+    if (
+      job.state === 'pending' ||
+      job.state === 'completed' ||
+      job.state === 'failed' ||
+      job.state === 'cancelled'
+    )
+      continue;
     job.allocatedS += dt;
     c.gpusAllocated += job.nodes.length * cfg.gpuCount;
 
@@ -425,9 +486,16 @@ export function advanceJobs(sim: Simulation): void {
       if (job.state === 'initializing') {
         job.phaseRemainingS -= dt;
         for (const i of job.nodes) {
-          applyNodeLoad(sim, i, { util: 0.04, activity: 0.02, memGB: memGB * 0.35 }, cfg.gpuCount, { cpu: 0.35, mem: 0.3, storage: job.requeued ? 0.8 : 0.1, net: 0.02, nvlink: 0 });
+          applyNodeLoad(sim, i, { util: 0.04, activity: 0.02, memGB: memGB * 0.35 }, cfg.gpuCount, {
+            cpu: 0.35,
+            mem: 0.3,
+            storage: job.requeued ? 0.8 : 0.1,
+            net: 0.02,
+            nvlink: 0,
+          });
         }
-        if (job.requeued && job.lastCheckpointStep > 0) c.storageReadGBs += storageBandwidthGBs(sim, job.nodes.length, 'read');
+        if (job.requeued && job.lastCheckpointStep > 0)
+          c.storageReadGBs += storageBandwidthGBs(sim, job.nodes.length, 'read');
         if (job.phaseRemainingS <= 0) {
           job.state = 'running';
           const resumed = job.requeued && job.lastCheckpointStep > 0;
@@ -445,14 +513,27 @@ export function advanceJobs(sim: Simulation): void {
       if (job.state === 'restarting') {
         job.phaseRemainingS -= dt;
         // Ranks spin in the hung collective: 100 % "utilisation", little power.
-        for (const i of job.nodes) applyNodeLoad(sim, i, { util: 1, activity: 0.12, memGB }, cfg.gpuCount, { cpu: 0.05, mem: 0.05, storage: 0, net: 0, nvlink: 0 });
+        for (const i of job.nodes)
+          applyNodeLoad(sim, i, { util: 1, activity: 0.12, memGB }, cfg.gpuCount, {
+            cpu: 0.05,
+            mem: 0.05,
+            storage: 0,
+            net: 0,
+            nvlink: 0,
+          });
         if (job.phaseRemainingS <= 0) {
           releaseNodes(sim, job);
           job.state = 'pending';
           job.requeued = true;
           job.reason = `Requeued after failure (restart #${job.restarts}, from step ${job.lastCheckpointStep})`;
           sim.congestion.delete(job.id);
-          sim.emit('notice', 'job', String(job.id), 'JOB_REQUEUED', `Job ${job.id} torn down and requeued — will resume from checkpoint step ${job.lastCheckpointStep}`);
+          sim.emit(
+            'notice',
+            'job',
+            String(job.id),
+            'JOB_REQUEUED',
+            `Job ${job.id} torn down and requeued — will resume from checkpoint step ${job.lastCheckpointStep}`,
+          );
         }
         continue;
       }
@@ -471,7 +552,14 @@ export function advanceJobs(sim: Simulation): void {
 
       if (job.state === 'checkpointing') {
         job.phaseRemainingS -= dt;
-        for (const i of job.nodes) applyNodeLoad(sim, i, { util: 0.12, activity: 0.06, memGB }, cfg.gpuCount, { cpu: 0.4, mem: 0.6, storage: 1, net: 0.05, nvlink: 0 });
+        for (const i of job.nodes)
+          applyNodeLoad(sim, i, { util: 0.12, activity: 0.06, memGB }, cfg.gpuCount, {
+            cpu: 0.4,
+            mem: 0.6,
+            storage: 1,
+            net: 0.05,
+            nvlink: 0,
+          });
         if (!bgWrite) c.storageWriteGBs += job.ckptWriteGBs;
         for (const i of job.nodes) n.storageGBs[i] = job.ckptWriteGBs / Math.max(1, job.nodes.length);
         if (job.phaseRemainingS <= 0) {
@@ -501,6 +589,7 @@ export function advanceJobs(sim: Simulation): void {
       job.productiveS += dt;
       const tokS = plan.tokensPerStep / sb.stepS;
       c.trainingTokensPerSec += tokS;
+      c.achievedFlops += plan.modelFlopsPerStep / sb.stepS;
       job.metrics = {
         ...job.metrics,
         stepTimeS: sb.stepS,
@@ -513,12 +602,18 @@ export function advanceJobs(sim: Simulation): void {
       };
       const activity = 0.97 * (0.55 + 0.45 * sb.computeFraction);
       const nicGbpsPerGpu = (sb.nicBytesPerGpu * 8) / sb.stepS / 1e9;
-      const netAct = Math.min(1, (sb.nicBytesPerGpu / sb.stepS) / nicBytesPerS);
-      const nvlAct = Math.min(1, (sb.nvlinkBytesPerGpu / sb.stepS) / nvlBytesPerS);
+      const netAct = Math.min(1, sb.nicBytesPerGpu / sb.stepS / nicBytesPerS);
+      const nvlAct = Math.min(1, sb.nvlinkBytesPerGpu / sb.stepS / nvlBytesPerS);
       const readGBs = (plan.tokensPerStep * 4) / sb.stepS / 1e9;
       c.storageReadGBs += readGBs;
       for (const i of job.nodes) {
-        applyNodeLoad(sim, i, { util: 0.97, activity, memGB: memGB * 0.98 }, cfg.gpuCount, { cpu: 0.18, mem: 0.35, storage: bgWrite ? 0.8 : 0.05, net: netAct, nvlink: nvlAct });
+        applyNodeLoad(sim, i, { util: 0.97, activity, memGB: memGB * 0.98 }, cfg.gpuCount, {
+          cpu: 0.18,
+          mem: 0.35,
+          storage: bgWrite ? 0.8 : 0.05,
+          net: netAct,
+          nvlink: nvlAct,
+        });
         const node = topo.nodes[i]!;
         for (let k = 0; k < node.cfg.gpuCount; k++) {
           const rail = node.cfg.rails > 0 ? k % node.cfg.rails : 0;
@@ -556,11 +651,20 @@ export function advanceJobs(sim: Simulation): void {
         const i = job.nodes[p]!;
         if (job.state === 'running' && job.nodeInitS[p]! > 0) {
           job.nodeInitS[p] = Math.max(0, job.nodeInitS[p]! - dt);
-          applyNodeLoad(sim, i, { util: 0.03, activity: 0.02, memGB: plan.weightsGBPerGpu * 0.5 }, cfg.gpuCount, { cpu: 0.3, mem: 0.3, storage: 0.8, net: 0.01, nvlink: 0 });
+          applyNodeLoad(
+            sim,
+            i,
+            { util: 0.03, activity: 0.02, memGB: plan.weightsGBPerGpu * 0.5 },
+            cfg.gpuCount,
+            { cpu: 0.3, mem: 0.3, storage: 0.8, net: 0.01, nvlink: 0 },
+          );
           continue;
         }
         const s = n.state[i];
-        if (n.powered[i] && (s === NodeState.Online || s === NodeState.Degraded || s === NodeState.Draining)) {
+        if (
+          n.powered[i] &&
+          (s === NodeState.Online || s === NodeState.Degraded || s === NodeState.Draining)
+        ) {
           readyNodes++;
           const node = topo.nodes[i]!;
           for (let k = 0; k < node.cfg.gpuCount; k++) {
@@ -572,11 +676,23 @@ export function advanceJobs(sim: Simulation): void {
       if (job.state === 'initializing') {
         job.phaseRemainingS -= dt;
         for (const i of job.nodes) {
-          applyNodeLoad(sim, i, { util: 0.03, activity: 0.02, memGB: plan.weightsGBPerGpu * 0.5 }, cfg.gpuCount, { cpu: 0.3, mem: 0.3, storage: 0.8, net: 0.01, nvlink: 0 });
+          applyNodeLoad(
+            sim,
+            i,
+            { util: 0.03, activity: 0.02, memGB: plan.weightsGBPerGpu * 0.5 },
+            cfg.gpuCount,
+            { cpu: 0.3, mem: 0.3, storage: 0.8, net: 0.01, nvlink: 0 },
+          );
         }
         if (job.phaseRemainingS <= 0) {
           job.state = 'running';
-          sim.emit('info', 'job', String(job.id), 'JOB_RUNNING', `Job ${job.id}: inference endpoint ready — ${plan.replicas} replica(s) of ${spec.modelId}, TP${plan.tp}, ${spec.precision.toUpperCase()}`);
+          sim.emit(
+            'info',
+            'job',
+            String(job.id),
+            'JOB_RUNNING',
+            `Job ${job.id}: inference endpoint ready — ${plan.replicas} replica(s) of ${spec.modelId}, TP${plan.tp}, ${spec.precision.toUpperCase()}`,
+          );
         }
         continue;
       }
@@ -586,6 +702,8 @@ export function advanceJobs(sim: Simulation): void {
       job.requestsServed += r.servedRps * dt;
       if (healthyReplicas > 0) job.productiveS += dt;
       c.inferenceTokensPerSec += r.tokensPerSec;
+      const active = model(spec.modelId).activeParams.v;
+      c.achievedFlops += 2 * active * (r.tokensPerSec + r.servedRps * spec.avgInputTokens);
       job.metrics = {
         ...job.metrics,
         tokensPerSec: r.tokensPerSec,
@@ -606,14 +724,26 @@ export function advanceJobs(sim: Simulation): void {
         replicasLeft -= onNode;
         const gpusUsed = onNode * plan.tp;
         if (gpusUsed === 0) continue;
-        applyNodeLoad(sim, i, { util: r.util, activity: r.util * r.intensity, memGB: r.memUsedGB }, gpusUsed, {
-          cpu: 0.12 + 0.2 * r.util,
-          mem: 0.2,
-          storage: 0.01,
-          net: 0.02,
-          nvlink: plan.tp > 1 ? 0.15 * r.util : 0,
-        });
-        n.netGbps[i] = (r.servedRps / Math.max(1, healthyReplicas)) * onNode * (spec.avgInputTokens + spec.avgOutputTokens) * 4 * 8 / 1e9;
+        applyNodeLoad(
+          sim,
+          i,
+          { util: r.util, activity: r.util * r.intensity, memGB: r.memUsedGB },
+          gpusUsed,
+          {
+            cpu: 0.12 + 0.2 * r.util,
+            mem: 0.2,
+            storage: 0.01,
+            net: 0.02,
+            nvlink: plan.tp > 1 ? 0.15 * r.util : 0,
+          },
+        );
+        n.netGbps[i] =
+          ((r.servedRps / Math.max(1, healthyReplicas)) *
+            onNode *
+            (spec.avgInputTokens + spec.avgOutputTokens) *
+            4 *
+            8) /
+          1e9;
       }
     }
   }

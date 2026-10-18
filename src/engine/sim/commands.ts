@@ -34,7 +34,11 @@ function resolveNodes(sim: Simulation, sel: NodeSelector): number[] | CommandRes
 }
 
 function summary(action: string, done: number, skipped: string[]): CommandResult {
-  if (done === 0 && skipped.length > 0) return fail('NOTHING_TO_DO', `${action}: ${skipped.slice(0, 3).join('; ')}${skipped.length > 3 ? ` (+${skipped.length - 3} more)` : ''}`);
+  if (done === 0 && skipped.length > 0)
+    return fail(
+      'NOTHING_TO_DO',
+      `${action}: ${skipped.slice(0, 3).join('; ')}${skipped.length > 3 ? ` (+${skipped.length - 3} more)` : ''}`,
+    );
   return {
     ok: true,
     message: `${action}: ${done} node${done === 1 ? '' : 's'}${skipped.length ? `, ${skipped.length} skipped` : ''}`,
@@ -52,12 +56,24 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
         return fail('VALUE_OUT_OF_RANGE', 'Failure-rate multiplier must be between 0 and 1000');
       }
       sim.failureRateMultiplier = cmd.multiplier;
-      sim.emit('notice', 'system', 'simulation', 'SIM_FAILURE_RATE', `Failure-rate multiplier set to ${cmd.multiplier}×`);
+      sim.emit(
+        'notice',
+        'system',
+        'simulation',
+        'SIM_FAILURE_RATE',
+        `Failure-rate multiplier set to ${cmd.multiplier}×`,
+      );
       return { ok: true, message: `Failure-rate multiplier ${cmd.multiplier}×` };
     }
     case 'sim.setAutoRemediation': {
       sim.autoRemediation = cmd.enabled;
-      sim.emit('notice', 'system', 'simulation', 'SIM_REMEDIATION', `Automated remediation ${cmd.enabled ? 'enabled' : 'disabled'}`);
+      sim.emit(
+        'notice',
+        'system',
+        'simulation',
+        'SIM_REMEDIATION',
+        `Automated remediation ${cmd.enabled ? 'enabled' : 'disabled'}`,
+      );
       return { ok: true, message: `Automated remediation ${cmd.enabled ? 'enabled' : 'disabled'}` };
     }
 
@@ -111,7 +127,13 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
           n.powered[i] = 0;
           if (reboot) sim.powerOnNode(i);
           else sim.setNodeState(i, NodeState.Offline);
-          sim.emit('notice', 'node', host, reboot ? 'NODE_POWER_CYCLE' : 'NODE_POWER_OFF_HARD', reboot ? 'BMC chassis power cycle' : 'BMC chassis power off (hard)');
+          sim.emit(
+            'notice',
+            'node',
+            host,
+            reboot ? 'NODE_POWER_CYCLE' : 'NODE_POWER_OFF_HARD',
+            reboot ? 'BMC chassis power cycle' : 'BMC chassis power off (hard)',
+          );
           done++;
           continue;
         }
@@ -122,7 +144,13 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
         }
         n.afterShutdown[i] = reboot ? 1 : 0;
         sim.setNodeState(i, NodeState.ShuttingDown, sim.topo.nodes[i]!.cfg.platform.boot.shutdownSeconds.v);
-        sim.emit('info', 'node', host, reboot ? 'NODE_REBOOT' : 'NODE_SHUTDOWN', reboot ? 'Reboot requested (systemctl reboot)' : 'Graceful shutdown requested (systemctl poweroff)');
+        sim.emit(
+          'info',
+          'node',
+          host,
+          reboot ? 'NODE_REBOOT' : 'NODE_SHUTDOWN',
+          reboot ? 'Reboot requested (systemctl reboot)' : 'Graceful shutdown requested (systemctl poweroff)',
+        );
         done++;
       }
       return summary(reboot ? 'Reboot' : 'Power off', done, skipped);
@@ -140,8 +168,15 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
           continue;
         }
         n.drain[i] = 1;
-        if (n.state[i] === NodeState.Online || n.state[i] === NodeState.Degraded) sim.setNodeState(i, NodeState.Draining);
-        sim.emit('notice', 'node', host, 'NODE_DRAIN', `Node drained${cmd.reason ? `: ${cmd.reason}` : ''}${n.job[i]! >= 0 ? ` — job ${n.job[i]} continues until completion` : ''}`);
+        if (n.state[i] === NodeState.Online || n.state[i] === NodeState.Degraded)
+          sim.setNodeState(i, NodeState.Draining);
+        sim.emit(
+          'notice',
+          'node',
+          host,
+          'NODE_DRAIN',
+          `Node drained${cmd.reason ? `: ${cmd.reason}` : ''}${n.job[i]! >= 0 ? ` — job ${n.job[i]} continues until completion` : ''}`,
+        );
         done++;
       }
       return summary('Drain', done, skipped);
@@ -189,9 +224,16 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
           }
           if (job >= 0) handleNodeLost(sim, job, i, 'node taken into maintenance');
           n.drain[i] = 1;
-          if (n.powered[i] && (RUNNING_STATES.includes(s) || s === NodeState.Post || s === NodeState.Booting)) {
+          if (
+            n.powered[i] &&
+            (RUNNING_STATES.includes(s) || s === NodeState.Post || s === NodeState.Booting)
+          ) {
             n.afterShutdown[i] = 2;
-            sim.setNodeState(i, NodeState.ShuttingDown, sim.topo.nodes[i]!.cfg.platform.boot.shutdownSeconds.v);
+            sim.setNodeState(
+              i,
+              NodeState.ShuttingDown,
+              sim.topo.nodes[i]!.cfg.platform.boot.shutdownSeconds.v,
+            );
           } else if (s === NodeState.ShuttingDown) {
             n.afterShutdown[i] = 2;
           } else {
@@ -206,7 +248,13 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
             continue;
           }
           n.drain[i] = 0;
-          sim.emit('info', 'node', host, 'NODE_MAINTENANCE_EXIT', 'Maintenance complete — returning node to service');
+          sim.emit(
+            'info',
+            'node',
+            host,
+            'NODE_MAINTENANCE_EXIT',
+            'Maintenance complete — returning node to service',
+          );
           sim.powerOnNode(i);
           done++;
         }
@@ -232,12 +280,15 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
           continue;
         }
         const replaced = repairNodeHardware(sim, i);
-        sim.tickets = sim.tickets.filter((t) => !(['node', 'psu', 'fan', 'nic', 'nvme'].includes(t.kind) && t.target === i));
+        sim.tickets = sim.tickets.filter(
+          (t) => !(['node', 'psu', 'fan', 'nic', 'nvme'].includes(t.kind) && t.target === i),
+        );
         if (replaced.length === 0) {
           skipped.push(`${host}: no failed components`);
           continue;
         }
-        if (s !== NodeState.Maintenance && s !== NodeState.Offline && s !== NodeState.Failed) sim.refreshNodeFaults(i);
+        if (s !== NodeState.Maintenance && s !== NodeState.Offline && s !== NodeState.Failed)
+          sim.refreshNodeFaults(i);
         sim.emit('notice', 'node', host, 'NODE_REPAIRED', `Replaced ${replaced.join(', ')}`);
         done++;
       }
@@ -257,7 +308,13 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
         const node = sim.topo.nodes[i]!;
         for (let k = 0; k < node.cfg.gpuCount; k++) sim.rt.gpus.powerLimitW[node.gpuStart + k] = cmd.watts;
       }
-      sim.emit('notice', 'system', 'power', 'GPU_POWER_LIMIT', `GPU power limit set to ${cmd.watts} W on ${nodes.length} node(s) (nvidia-smi -pl ${cmd.watts})`);
+      sim.emit(
+        'notice',
+        'system',
+        'power',
+        'GPU_POWER_LIMIT',
+        `GPU power limit set to ${cmd.watts} W on ${nodes.length} node(s) (nvidia-smi -pl ${cmd.watts})`,
+      );
       return { ok: true, message: `Power limit ${cmd.watts} W on ${nodes.length} node(s)` };
     }
 
@@ -266,7 +323,8 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
       const ids: number[] = [];
       for (const ref of cmd.switches) {
         const s = typeof ref === 'number' ? ref : sim.switchIndex.get(ref);
-        if (s === undefined || s < 0 || s >= sim.topo.switches.length) return fail('SWITCH_NOT_FOUND', `Unknown switch "${String(ref)}"`);
+        if (s === undefined || s < 0 || s >= sim.topo.switches.length)
+          return fail('SWITCH_NOT_FOUND', `Unknown switch "${String(ref)}"`);
         ids.push(s);
       }
       for (const s of ids) {
@@ -276,7 +334,10 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
         } else if (cmd.up) restoreSwitch(sim, s, true);
         else if (sim.rt.switches.adminUp[s]) applySwitchFault(sim, s, true);
       }
-      return { ok: true, message: `${cmd.type === 'switch.repair' ? 'Repaired' : cmd.up ? 'Enabled' : 'Disabled'} ${ids.length} switch(es)` };
+      return {
+        ok: true,
+        message: `${cmd.type === 'switch.repair' ? 'Repaired' : cmd.up ? 'Enabled' : 'Disabled'} ${ids.length} switch(es)`,
+      };
     }
 
     case 'fault.inject':
@@ -287,15 +348,23 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
       const info = sim.topo.halls[cmd.hall];
       if (!hall || !info) return fail('HALL_NOT_FOUND', `Unknown hall index ${cmd.hall}`);
       if (cmd.airSupplyC !== undefined) {
-        if (cmd.airSupplyC < 15 || cmd.airSupplyC > 32) return fail('VALUE_OUT_OF_RANGE', 'Supply air setpoint must be 15–32 °C (ASHRAE A1 allowable)');
+        if (cmd.airSupplyC < 15 || cmd.airSupplyC > 32)
+          return fail('VALUE_OUT_OF_RANGE', 'Supply air setpoint must be 15–32 °C (ASHRAE A1 allowable)');
         hall.airSetpointC = cmd.airSupplyC;
       }
       if (cmd.liquidSupplyC !== undefined) {
         if (!info.liquidUnit) return fail('NO_LIQUID_LOOP', `${info.name} has no liquid cooling loop`);
-        if (cmd.liquidSupplyC < 17 || cmd.liquidSupplyC > 45) return fail('VALUE_OUT_OF_RANGE', 'Coolant supply setpoint must be 17–45 °C');
+        if (cmd.liquidSupplyC < 17 || cmd.liquidSupplyC > 45)
+          return fail('VALUE_OUT_OF_RANGE', 'Coolant supply setpoint must be 17–45 °C');
         hall.liquidSetpointC = cmd.liquidSupplyC;
       }
-      sim.emit('notice', 'hall', info.id, 'SETPOINT_CHANGED', `${info.name}: setpoints air ${hall.airSetpointC} °C${info.liquidUnit ? `, coolant ${hall.liquidSetpointC} °C` : ''}`);
+      sim.emit(
+        'notice',
+        'hall',
+        info.id,
+        'SETPOINT_CHANGED',
+        `${info.name}: setpoints air ${hall.airSetpointC} °C${info.liquidUnit ? `, coolant ${hall.liquidSetpointC} °C` : ''}`,
+      );
       return { ok: true, message: `Setpoints updated for ${info.name}` };
     }
 
@@ -306,7 +375,13 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
       }
       sim.plant.chillersFailed = 0;
       sim.tickets = sim.tickets.filter((t) => !['air-unit', 'liquid-unit', 'chiller'].includes(t.kind));
-      sim.emit('notice', 'facility', 'plant', 'FACILITY_REPAIRED', 'All cooling plant equipment returned to service');
+      sim.emit(
+        'notice',
+        'facility',
+        'plant',
+        'FACILITY_REPAIRED',
+        'All cooling plant equipment returned to service',
+      );
       return { ok: true, message: 'Facility equipment repaired' };
     }
 
@@ -317,10 +392,18 @@ export function executeCommand(sim: Simulation, cmd: Command): CommandResult {
     case 'job.setRequestRate': {
       const job = sim.jobs.get(cmd.jobId);
       if (!job) return fail('JOB_NOT_FOUND', `Job ${cmd.jobId} not found`);
-      if (job.spec.kind !== 'inference') return fail('JOB_NOT_INFERENCE', `Job ${cmd.jobId} is not an inference service`);
-      if (!Number.isFinite(cmd.requestRate) || cmd.requestRate < 0) return fail('VALUE_OUT_OF_RANGE', 'Request rate must be ≥ 0');
+      if (job.spec.kind !== 'inference')
+        return fail('JOB_NOT_INFERENCE', `Job ${cmd.jobId} is not an inference service`);
+      if (!Number.isFinite(cmd.requestRate) || cmd.requestRate < 0)
+        return fail('VALUE_OUT_OF_RANGE', 'Request rate must be ≥ 0');
       job.spec.requestRate = cmd.requestRate;
-      sim.emit('info', 'job', String(job.id), 'JOB_LOAD_CHANGED', `Job ${job.id}: offered load set to ${cmd.requestRate} req/s`);
+      sim.emit(
+        'info',
+        'job',
+        String(job.id),
+        'JOB_LOAD_CHANGED',
+        `Job ${job.id}: offered load set to ${cmd.requestRate} req/s`,
+      );
       return { ok: true, message: `Request rate ${cmd.requestRate} req/s` };
     }
   }

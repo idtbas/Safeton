@@ -45,11 +45,17 @@ export function MetricTile({
           {value}
           {unit && <span className="sf-metric__unit">{unit}</span>}
         </div>
-        {trend && trend.length > 1 && <Sparkline values={trend} width={w} height={26} format={trendFormat} color={trendColor} />}
+        {trend && trend.length > 1 && (
+          <Sparkline values={trend} width={w} height={26} format={trendFormat} color={trendColor} />
+        )}
       </div>
       {(foot || delta) && (
         <div className="sf-metric__foot">
-          {delta && <span className={`sf-delta--${delta.direction}-${delta.good ? 'good' : 'bad'}`}>{delta.text}</span>}
+          {delta && (
+            <span className={`sf-delta--${delta.direction}-${delta.good ? 'good' : 'bad'}`}>
+              {delta.text}
+            </span>
+          )}
           {foot}
         </div>
       )}

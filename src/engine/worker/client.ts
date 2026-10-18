@@ -33,7 +33,10 @@ export class EngineClient {
     const canWorker = opts.preferWorker !== false && typeof Worker !== 'undefined';
     if (canWorker) {
       try {
-        this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module', name: 'safeton-engine' });
+        this.worker = new Worker(new URL('./worker.ts', import.meta.url), {
+          type: 'module',
+          name: 'safeton-engine',
+        });
         this.worker.onmessage = (e: MessageEvent<WorkerMessage>) => this.receive(e.data);
         this.worker.onerror = (e) => this.fatal(`Engine worker error: ${e.message}`);
         this.mode = 'worker';
@@ -69,7 +72,9 @@ export class EngineClient {
     for (const l of this.fatalListeners) l(error);
   }
 
-  private request<K extends ClientRequest['kind']>(req: Extract<ClientRequest, { kind: K }>): Promise<RequestResultMap[K]> {
+  private request<K extends ClientRequest['kind']>(
+    req: Extract<ClientRequest, { kind: K }>,
+  ): Promise<RequestResultMap[K]> {
     const id = this.nextId++;
     const msg = { ...req, id } as ClientMessage;
     return new Promise((resolve, reject) => {

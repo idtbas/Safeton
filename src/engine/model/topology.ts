@@ -179,7 +179,8 @@ export function expandTopology(spec: InfraSpec): Topology {
         liquidUnit && hallSpec.liquid
           ? usableUnits(hallSpec.liquid.redundancy, hallSpec.liquid.count) * liquidUnit.capacityKW.v * 1000
           : 0,
-      liquidInstalledW: liquidUnit && hallSpec.liquid ? hallSpec.liquid.count * liquidUnit.capacityKW.v * 1000 : 0,
+      liquidInstalledW:
+        liquidUnit && hallSpec.liquid ? hallSpec.liquid.count * liquidUnit.capacityKW.v * 1000 : 0,
     };
     halls.push(hall);
 
@@ -225,7 +226,8 @@ export function expandTopology(spec: InfraSpec): Topology {
           let weightKg: number;
           if (rackSystem) {
             const nvsw = part('nvswitch', rackSystem.nvswitchPerTray.id);
-            const perTrayPeak = nvsw.powerW.v * rackSystem.nvswitchPerTray.count + rackSystem.switchTrayOverheadW.v;
+            const perTrayPeak =
+              nvsw.powerW.v * rackSystem.nvswitchPerTray.count + rackSystem.switchTrayOverheadW.v;
             const perTrayIdle =
               nvsw.powerW.v * rackSystem.nvswitchPerTray.count * 0.4 + rackSystem.switchTrayOverheadW.v * 0.6;
             // Switch trays are fed by the same power shelves (≈97.5 % conversion efficiency).
@@ -304,7 +306,14 @@ export function expandTopology(spec: InfraSpec): Topology {
   if (plan.tiers > 0 && switchSpec) {
     const prefix = switchSpec.fabric === 'InfiniBand' ? 'ib' : 'eth';
     const s = plan.portSpeedGbps;
-    const addSwitch = (name: string, tier: SwitchTier, plane: number, group: number, down: number, up: number) => {
+    const addSwitch = (
+      name: string,
+      tier: SwitchTier,
+      plane: number,
+      group: number,
+      down: number,
+      up: number,
+    ) => {
       switches.push({
         idx: switches.length,
         name,
@@ -325,7 +334,14 @@ export function expandTopology(spec: InfraSpec): Topology {
       const leafIdx: number[] = [];
       for (let l = 0; l < plan.leavesPerPlane; l++) {
         leafIdx.push(
-          addSwitch(`${prefix}-leaf-${planeTag}${pad(l + 1, 3)}`, 0, p, l, plan.downPorts * s, plan.upPorts * s),
+          addSwitch(
+            `${prefix}-leaf-${planeTag}${pad(l + 1, 3)}`,
+            0,
+            p,
+            l,
+            plan.downPorts * s,
+            plan.upPorts * s,
+          ),
         );
       }
       if (plan.tiers === 2) {
@@ -365,14 +381,16 @@ export function expandTopology(spec: InfraSpec): Topology {
             podSpines.push(sp);
             const cores = coreIdx[j]!;
             const trunk = (spineUp * s) / cores.length;
-            for (const c of cores) switchUplinks[sp]!.push(addLink(sp, c, 2, p, trunk, CABLE_LENGTH_M.spineCore));
+            for (const c of cores)
+              switchUplinks[sp]!.push(addLink(sp, c, 2, p, trunk, CABLE_LENGTH_M.spineCore));
           }
           const firstLeaf = pod * plan.leavesPerPod;
           const lastLeaf = Math.min(plan.leavesPerPlane, firstLeaf + plan.leavesPerPod);
           for (let l = firstLeaf; l < lastLeaf; l++) {
             const leaf = leafIdx[l]!;
             const trunk = (plan.upPorts * s) / podSpines.length;
-            for (const sp of podSpines) switchUplinks[leaf]!.push(addLink(leaf, sp, 1, p, trunk, CABLE_LENGTH_M.leafSpine));
+            for (const sp of podSpines)
+              switchUplinks[leaf]!.push(addLink(leaf, sp, 1, p, trunk, CABLE_LENGTH_M.leafSpine));
           }
         }
       }
@@ -479,11 +497,19 @@ export function expandTopology(spec: InfraSpec): Topology {
   if (spec.storage.count > 0) {
     const sysSpec = part('storage', spec.storage.systemId);
     for (let i = 0; i < spec.storage.count; i++) {
-      storage.push({ idx: i, name: `stor-${sysSpec.class === 'parallel-fs' ? 'pfs' : 'nfs'}-${pad(i + 1)}`, spec: sysSpec, rackIdx: -1 });
+      storage.push({
+        idx: i,
+        name: `stor-${sysSpec.class === 'parallel-fs' ? 'pfs' : 'nfs'}-${pad(i + 1)}`,
+        spec: sysSpec,
+        rackIdx: -1,
+      });
     }
     const perRack = Math.max(
       1,
-      Math.min(Math.floor(NETWORK_RACK_U / sysSpec.rackUnits), Math.floor(STORAGE_RACK_MAX_W / sysSpec.powerW.v)),
+      Math.min(
+        Math.floor(NETWORK_RACK_U / sysSpec.rackUnits),
+        Math.floor(STORAGE_RACK_MAX_W / sysSpec.powerW.v),
+      ),
     );
     const storRackSpec = part('rack', 'rack-42u-600');
     const storPdu = part('pdu', 'pdu-3ph-415v-32a');

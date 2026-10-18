@@ -3,7 +3,8 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './Button';
 
-const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Modal dialog with focus trap, Escape to close and focus restoration. */
 export function Dialog({
@@ -82,7 +83,14 @@ export function Dialog({
               </p>
             )}
           </div>
-          <Button variant="ghost" size="sm" iconOnly icon={<X size={14} />} aria-label="Close" onClick={onClose} />
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            icon={<X size={14} />}
+            aria-label="Close"
+            onClick={onClose}
+          />
         </div>
         {children && <div className="sf-dialog__body">{children}</div>}
         {footer && <div className="sf-dialog__footer">{footer}</div>}

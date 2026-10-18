@@ -160,7 +160,10 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     const s = get();
     const w = s.windows[id];
     if (!w || w.maximized) return;
-    const b = clampBounds({ x: w.x, y: w.y, w: w.w, h: w.h, ...bounds }, s.viewport, { w: w.minW, h: w.minH });
+    const b = clampBounds({ x: w.x, y: w.y, w: w.w, h: w.h, ...bounds }, s.viewport, {
+      w: w.minW,
+      h: w.minH,
+    });
     set({ windows: { ...s.windows, [id]: { ...w, ...b } } });
   },
 
@@ -177,13 +180,24 @@ export const useWindowStore = create<WindowManagerState>((set, get) => ({
     const w = s.windows[id];
     if (!w) return;
     if (w.maximized && w.restoreBounds) {
-      set({ windows: { ...s.windows, [id]: { ...w, ...w.restoreBounds, maximized: false, restoreBounds: null } } });
+      set({
+        windows: { ...s.windows, [id]: { ...w, ...w.restoreBounds, maximized: false, restoreBounds: null } },
+      });
     } else {
       const restoreBounds = { x: w.x, y: w.y, w: w.w, h: w.h };
       set({
         windows: {
           ...s.windows,
-          [id]: { ...w, x: 0, y: 0, w: s.viewport.w, h: s.viewport.h, maximized: true, restoreBounds, z: s.nextZ },
+          [id]: {
+            ...w,
+            x: 0,
+            y: 0,
+            w: s.viewport.w,
+            h: s.viewport.h,
+            maximized: true,
+            restoreBounds,
+            z: s.nextZ,
+          },
         },
         focusedId: id,
         nextZ: s.nextZ + 1,

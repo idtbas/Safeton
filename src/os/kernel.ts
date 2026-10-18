@@ -3,10 +3,7 @@
  * together. All lifecycle operations (boot, save, reset, import/export) live here so every
  * UI surface — and later the terminal — triggers the exact same code paths.
  */
-import {
-  CATALOG,
-  CATALOG_VERSION,
-} from '../catalog';
+import { CATALOG, CATALOG_VERSION } from '../catalog';
 import {
   EngineClient,
   SEVERITY_RANK,
@@ -58,7 +55,11 @@ const humanize = (code: string) =>
   code
     .toLowerCase()
     .split('_')
-    .map((w) => (w === 'gpu' || w === 'nic' || w === 'psu' || w === 'xid' || w === 'cdu' || w === 'crah' ? w.toUpperCase() : w))
+    .map((w) =>
+      w === 'gpu' || w === 'nic' || w === 'psu' || w === 'xid' || w === 'cdu' || w === 'crah'
+        ? w.toUpperCase()
+        : w,
+    )
     .join(' ')
     .replace(/^./, (c) => c.toUpperCase());
 
@@ -79,7 +80,13 @@ function forwardEvents(events: SimEvent[], settings: Settings): void {
     return;
   }
   for (const e of relevant) {
-    push({ severity: e.severity, title: humanize(e.code), body: e.message, source: `${e.source.kind}:${e.source.id}`, simTime: e.time });
+    push({
+      severity: e.severity,
+      title: humanize(e.code),
+      body: e.message,
+      source: `${e.source.kind}:${e.source.id}`,
+      simTime: e.time,
+    });
   }
 }
 
@@ -157,18 +164,26 @@ async function runBoot(onProgress?: (steps: BootStep[]) => void): Promise<void> 
   const notify = useNotificationStore.getState().push;
   try {
     registerBuiltinApps();
-    const store = await run('storage', openDocumentStore, (s) => (s.kind === 'indexeddb' ? 'IndexedDB' : 'volatile memory (storage unavailable)'));
+    const store = await run('storage', openDocumentStore, (s) =>
+      s.kind === 'indexeddb' ? 'IndexedDB' : 'volatile memory (storage unavailable)',
+    );
     const repo = new Repository(store);
     useEngineStore.setState({ storageKind: store.kind });
     if (store.kind === 'memory') {
-      notify({ severity: 'warning', title: 'Persistent storage unavailable', body: 'Browser storage is blocked; changes will not survive a reload.', source: 'kernel' });
+      notify({
+        severity: 'warning',
+        title: 'Persistent storage unavailable',
+        body: 'Browser storage is blocked; changes will not survive a reload.',
+        source: 'kernel',
+      });
     }
 
     const settings = await run(
       'settings',
       async () => {
         const res = await repo.loadSettings();
-        for (const issue of res.issues) notify({ severity: 'warning', title: 'Configuration recovered', body: issue, source: 'kernel' });
+        for (const issue of res.issues)
+          notify({ severity: 'warning', title: 'Configuration recovered', body: issue, source: 'kernel' });
         return res.value ?? defaultSettings();
       },
       (s) => `${s.system.hostname} · ${s.region.locale}`,
@@ -176,12 +191,20 @@ async function runBoot(onProgress?: (steps: BootStep[]) => void): Promise<void> 
     useSettingsStore.getState().replace(settings);
     applySettingsSideEffects(settings, null);
 
-    await run('catalog', () => {
-      const items = Object.values(CATALOG).reduce((n, list) => n + list.length, 0);
-      return items;
-    }, (n) => `${n} component definitions (catalog ${CATALOG_VERSION})`);
+    await run(
+      'catalog',
+      () => {
+        const items = Object.values(CATALOG).reduce((n, list) => n + list.length, 0);
+        return items;
+      },
+      (n) => `${n} component definitions (catalog ${CATALOG_VERSION})`,
+    );
 
-    const client = await run('engine', () => new EngineClient(), (c) => (c.mode === 'worker' ? 'dedicated worker thread' : 'in-process (worker unavailable)'));
+    const client = await run(
+      'engine',
+      () => new EngineClient(),
+      (c) => (c.mode === 'worker' ? 'dedicated worker thread' : 'in-process (worker unavailable)'),
+    );
     kernel = { repo, client, autosaveTimer: null, unsubscribers: [] };
     useEngineStore.setState({ mode: client.mode });
 
@@ -194,24 +217,40 @@ async function runBoot(onProgress?: (steps: BootStep[]) => void): Promise<void> 
       'state',
       async () => {
         const saved = await repo.loadSimState();
-        for (const issue of saved.issues) notify({ severity: 'warning', title: 'Simulation state recovered', body: issue, source: 'kernel' });
+        for (const issue of saved.issues)
+          notify({ severity: 'warning', title: 'Simulation state recovered', body: issue, source: 'kernel' });
         if (saved.value) {
           try {
             return await client.restore(saved.value, control);
           } catch (err) {
             await store.quarantine('sim-state', null, (err as Error).message);
-            notify({ severity: 'error', title: 'Saved state could not be restored', body: (err as Error).message, source: 'kernel' });
+            notify({
+              severity: 'error',
+              title: 'Saved state could not be restored',
+              body: (err as Error).message,
+              source: 'kernel',
+            });
           }
         }
         const infra = await repo.loadInfra();
-        for (const issue of infra.issues) notify({ severity: 'warning', title: 'Infrastructure configuration recovered', body: issue, source: 'kernel' });
+        for (const issue of infra.issues)
+          notify({
+            severity: 'warning',
+            title: 'Infrastructure configuration recovered',
+            body: issue,
+            source: 'kernel',
+          });
         const spec = infra.value ?? buildTemplate(settings.simulation.defaultTemplate);
         if (!infra.value) await repo.saveInfra(spec);
-        return client.init(spec, {
-          seed: settings.simulation.seed,
-          failureRateMultiplier: settings.simulation.failureRateMultiplier,
-          autoRemediation: settings.simulation.autoRemediation,
-        }, control);
+        return client.init(
+          spec,
+          {
+            seed: settings.simulation.seed,
+            failureRateMultiplier: settings.simulation.failureRateMultiplier,
+            autoRemediation: settings.simulation.autoRemediation,
+          },
+          control,
+        );
       },
       (r) => `${r.topology.spec.name}: ${r.topology.nodes.length} nodes, ${r.topology.gpuCount} GPUs`,
     );
@@ -226,7 +265,12 @@ async function runBoot(onProgress?: (steps: BootStep[]) => void): Promise<void> 
         }),
         client.onFatal((error) => {
           useEngineStore.setState({ status: 'error', error });
-          notify({ severity: 'critical', title: 'Simulation engine fault', body: error.split('\n')[0] ?? error, source: 'kernel' });
+          notify({
+            severity: 'critical',
+            title: 'Simulation engine fault',
+            body: error.split('\n')[0] ?? error,
+            source: 'kernel',
+          });
         }),
         useSettingsStore.subscribe((state, prev) => {
           if (state.settings === prev.settings) return;
@@ -300,10 +344,15 @@ export function saveNow(): Promise<void> {
 }
 
 /** Replaces the running infrastructure with a new (validated) specification. */
-export async function loadInfrastructure(spec: InfraSpec): Promise<{ ok: true } | { ok: false; message: string }> {
+export async function loadInfrastructure(
+  spec: InfraSpec,
+): Promise<{ ok: true } | { ok: false; message: string }> {
   const report = validateInfra(spec);
   if (!report.ok) {
-    return { ok: false, message: `${report.errors} validation error(s): ${report.issues.find((i) => i.severity === 'error')?.message ?? ''}` };
+    return {
+      ok: false,
+      message: `${report.errors} validation error(s): ${report.issues.find((i) => i.severity === 'error')?.message ?? ''}`,
+    };
   }
   const { repo, client } = requireKernel();
   const settings = useSettingsStore.getState().settings;
@@ -314,7 +363,11 @@ export async function loadInfrastructure(spec: InfraSpec): Promise<{ ok: true } 
       failureRateMultiplier: settings.simulation.failureRateMultiplier,
       autoRemediation: settings.simulation.autoRemediation,
     },
-    { running: settings.simulation.startRunning, timeScale: settings.simulation.timeScale, snapshotHz: settings.simulation.snapshotHz },
+    {
+      running: settings.simulation.startRunning,
+      timeScale: settings.simulation.timeScale,
+      snapshotHz: settings.simulation.snapshotHz,
+    },
   );
   useEngineStore.setState({ topology: init.topology, events: [], series: { time: [] } });
   await seedSeries();
@@ -336,7 +389,9 @@ export async function exportSystem(): Promise<string> {
 }
 
 /** Validates an export file, persists it and re-initialises the engine from it. */
-export async function importSystem(text: string): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+export async function importSystem(
+  text: string,
+): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
   const { repo, client } = requireKernel();
   let bundle;
   try {
@@ -347,15 +402,26 @@ export async function importSystem(text: string): Promise<{ ok: true; message: s
   await repo.importBundle(bundle);
   if (bundle.settings) useSettingsStore.getState().replace(bundle.settings);
   const settings = useSettingsStore.getState().settings;
-  const control = { running: settings.simulation.startRunning, timeScale: settings.simulation.timeScale, snapshotHz: settings.simulation.snapshotHz };
+  const control = {
+    running: settings.simulation.startRunning,
+    timeScale: settings.simulation.timeScale,
+    snapshotHz: settings.simulation.snapshotHz,
+  };
   try {
     const init = bundle.simState
       ? await client.restore(bundle.simState, control)
-      : await client.init(bundle.infra ?? buildTemplate(settings.simulation.defaultTemplate), { seed: settings.simulation.seed }, control);
+      : await client.init(
+          bundle.infra ?? buildTemplate(settings.simulation.defaultTemplate),
+          { seed: settings.simulation.seed },
+          control,
+        );
     useEngineStore.setState({ topology: init.topology, events: [], series: { time: [] } });
     await seedSeries();
   } catch (err) {
-    return { ok: false, message: `Import stored, but the engine rejected the state: ${(err as Error).message}` };
+    return {
+      ok: false,
+      message: `Import stored, but the engine rejected the state: ${(err as Error).message}`,
+    };
   }
   return { ok: true, message: `Imported export from ${bundle.exportedAt}` };
 }

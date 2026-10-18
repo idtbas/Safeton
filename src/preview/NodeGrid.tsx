@@ -83,7 +83,8 @@ export function NodeGrid({
       let color: string;
       if (st === NodeState.Offline || st === NodeState.Maintenance) color = off;
       else if (st === NodeState.Failed) color = failed;
-      else if (st === NodeState.Post || st === NodeState.Booting || st === NodeState.ShuttingDown) color = info;
+      else if (st === NodeState.Post || st === NodeState.Booting || st === NodeState.ShuttingDown)
+        color = info;
       else {
         const v =
           metric === 'util'
@@ -141,23 +142,36 @@ export function NodeGrid({
             {topology.nodes[h.i]!.hostname}
           </div>
           <div className="sf-muted">
-            {topology.racks[topology.nodes[h.i]!.rack]!.name} · {NODE_STATE_LABEL[NODE_STATE_NAMES[snapshot.nodes.state[h.i]!]!]}
+            {topology.racks[topology.nodes[h.i]!.rack]!.name} ·{' '}
+            {NODE_STATE_LABEL[NODE_STATE_NAMES[snapshot.nodes.state[h.i]!]!]}
           </div>
           <div className="mono">
-            util {fmt.percent(snapshot.nodes.gpuUtil[h.i]!, 0)} · {fmt.temperature(snapshot.nodes.gpuTempMax[h.i]!)} ·{' '}
+            util {fmt.percent(snapshot.nodes.gpuUtil[h.i]!, 0)} ·{' '}
+            {fmt.temperature(snapshot.nodes.gpuTempMax[h.i]!)} ·{' '}
             {fmt.q(fmt.power(snapshot.nodes.powerW[h.i]!))}
           </div>
           {snapshot.nodes.job[h.i]! >= 0 && <div className="sf-muted">job {snapshot.nodes.job[h.i]}</div>}
         </div>
       )}
       <div className="pv-grid__legend">
-        <span className="sf-muted">{metric === 'util' ? 'GPU util' : metric === 'temp' ? 'Max GPU temp' : 'Node power'}</span>
-        <span className="pv-grid__ramp" style={{ background: `linear-gradient(to right, ${rampFor(metric).join(',')})` }} />
-        <span className="sf-muted mono">{metric === 'util' ? '0–100 %' : metric === 'temp' ? '25–90 °C' : `0–max`}</span>
-        <span className="pv-grid__key" style={{ background: 'var(--bg-4)' }} /> <span className="sf-muted">off / maint.</span>
-        <span className="pv-grid__key" style={{ background: 'var(--status-info)' }} /> <span className="sf-muted">booting</span>
-        <span className="pv-grid__key" style={{ boxShadow: 'inset 0 0 0 1px var(--status-warning)' }} /> <span className="sf-muted">degraded</span>
-        <span className="pv-grid__key" style={{ background: 'var(--status-critical)' }} /> <span className="sf-muted">failed</span>
+        <span className="sf-muted">
+          {metric === 'util' ? 'GPU util' : metric === 'temp' ? 'Max GPU temp' : 'Node power'}
+        </span>
+        <span
+          className="pv-grid__ramp"
+          style={{ background: `linear-gradient(to right, ${rampFor(metric).join(',')})` }}
+        />
+        <span className="sf-muted mono">
+          {metric === 'util' ? '0–100 %' : metric === 'temp' ? '25–90 °C' : `0–max`}
+        </span>
+        <span className="pv-grid__key" style={{ background: 'var(--bg-4)' }} />{' '}
+        <span className="sf-muted">off / maint.</span>
+        <span className="pv-grid__key" style={{ background: 'var(--status-info)' }} />{' '}
+        <span className="sf-muted">booting</span>
+        <span className="pv-grid__key" style={{ boxShadow: 'inset 0 0 0 1px var(--status-warning)' }} />{' '}
+        <span className="sf-muted">degraded</span>
+        <span className="pv-grid__key" style={{ background: 'var(--status-critical)' }} />{' '}
+        <span className="sf-muted">failed</span>
       </div>
     </div>
   );

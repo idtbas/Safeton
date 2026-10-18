@@ -29,9 +29,17 @@ export const rackTemplateSchema = z.object({
       nodesPerRack: z.number().int().positive().max(64),
       overrides: nodeOverridesSchema.optional(),
     }),
-    z.object({ kind: z.literal('rack-system'), rackSystemId: z.string(), overrides: nodeOverridesSchema.optional() }),
+    z.object({
+      kind: z.literal('rack-system'),
+      rackSystemId: z.string(),
+      overrides: nodeOverridesSchema.optional(),
+    }),
   ]),
-  pdu: z.object({ pduId: z.string(), perFeed: z.number().int().positive().max(8), feeds: z.union([z.literal(1), z.literal(2)]) }),
+  pdu: z.object({
+    pduId: z.string(),
+    perFeed: z.number().int().positive().max(8),
+    feeds: z.union([z.literal(1), z.literal(2)]),
+  }),
 });
 
 export const infraSpecSchema = z.object({
@@ -45,10 +53,18 @@ export const infraSpecSchema = z.object({
     code: z.string(),
     city: z.string(),
     country: z.string(),
-    climate: z.object({ annualMeanC: z.number(), seasonalAmplitudeC: z.number(), diurnalAmplitudeC: z.number() }),
+    climate: z.object({
+      annualMeanC: z.number(),
+      seasonalAmplitudeC: z.number(),
+      diurnalAmplitudeC: z.number(),
+    }),
     utility: z.object({ feedMW: z.number().positive(), feeds: z.union([z.literal(1), z.literal(2)]) }),
     ups: z.object({ upsId: z.string(), modules: z.number().int().nonnegative(), redundancy }),
-    generators: z.object({ count: z.number().int().nonnegative(), unitMW: z.number().nonnegative(), redundancy }),
+    generators: z.object({
+      count: z.number().int().nonnegative(),
+      unitMW: z.number().nonnegative(),
+      redundancy,
+    }),
     plant: z.object({
       chillerId: z.string(),
       chillers: z.number().int().nonnegative(),
@@ -69,12 +85,24 @@ export const infraSpecSchema = z.object({
         rows: z.array(
           z.object({
             id: z.string(),
-            rackGroups: z.array(z.object({ count: z.number().int().positive().max(20_000), template: rackTemplateSchema })),
+            rackGroups: z.array(
+              z.object({ count: z.number().int().positive().max(20_000), template: rackTemplateSchema }),
+            ),
           }),
         ),
-        air: z.object({ unitId: z.string(), count: z.number().int().nonnegative(), redundancy, supplyC: z.number() }),
+        air: z.object({
+          unitId: z.string(),
+          count: z.number().int().nonnegative(),
+          redundancy,
+          supplyC: z.number(),
+        }),
         liquid: z
-          .object({ cduId: z.string(), count: z.number().int().nonnegative(), redundancy, supplyC: z.number() })
+          .object({
+            cduId: z.string(),
+            count: z.number().int().nonnegative(),
+            redundancy,
+            supplyC: z.number(),
+          })
           .nullable(),
       }),
     )

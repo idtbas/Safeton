@@ -36,7 +36,11 @@ export function App() {
     <div className="pv-app">
       <Header route={route} />
       {status === 'ready' ? (
-        route.startsWith('#/components') ? <Gallery /> : <EngineeringPreview />
+        route.startsWith('#/components') ? (
+          <Gallery />
+        ) : (
+          <EngineeringPreview />
+        )
       ) : (
         <BootStatus steps={steps} error={status === 'error' ? error : null} />
       )}

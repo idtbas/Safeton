@@ -144,7 +144,12 @@ export const GPUS: readonly GpuSpec[] = [
       fp4: pkDerived(9000, 'HGX B200 total / 8'),
       int8: pkDerived(4500, 'HGX B200 total / 8'),
     },
-    memory: { type: 'HBM3e', capacityGB: vendor(180, 'HGX B200: 1.4 TB / 8'), bandwidthGBs: vendor(8000), stacks: 8 },
+    memory: {
+      type: 'HBM3e',
+      capacityGB: vendor(180, 'HGX B200: 1.4 TB / 8'),
+      bandwidthGBs: vendor(8000),
+      stacks: 8,
+    },
     interconnect: { kind: 'NVLink 5', bandwidthGBs: vendor(1800), links: 18 },
     hostInterface: 'PCIe 6.0 x16',
     power: { tdpW: vendor(1000), idleW: est(120), minPowerLimitW: est(400) },
@@ -189,7 +194,11 @@ export const GPUS: readonly GpuSpec[] = [
     },
     interconnect: { kind: 'NVLink 5', bandwidthGBs: vendor(1800), links: 18 },
     hostInterface: 'NVLink-C2C to Grace',
-    power: { tdpW: est(1200, 'Configurable; superchip envelope up to 2.7 kW'), idleW: est(130), minPowerLimitW: est(500) },
+    power: {
+      tdpW: est(1200, 'Configurable; superchip envelope up to 2.7 kW'),
+      idleW: est(130),
+      minPowerLimitW: est(500),
+    },
     thermal: {
       slowdownC: est(87),
       shutdownC: est(93),
@@ -234,7 +243,10 @@ export const GPUS: readonly GpuSpec[] = [
       air: { rthKW: assume(0.068), heatCapacityJK: assume(620) },
       liquid: { rthKW: assume(0.042), heatCapacityJK: assume(360) },
     },
-    kernelEfficiency: assume(0.45, 'ROCm stack achieves a lower fraction of the higher nominal peak in public benchmarks'),
+    kernelEfficiency: assume(
+      0.45,
+      'ROCm stack achieves a lower fraction of the higher nominal peak in public benchmarks',
+    ),
     hbmEfficiency: assume(0.75),
     afr: est(0.1),
     costUsd: est(17_500),

@@ -3,3 +3,4 @@ coverage
 node_modules
 package-lock.json
 docs/VISION.md
+docs/CATALOG.md

@@ -81,7 +81,10 @@ export type SettingsPatch = DeepPartial<Settings>;
 export function mergeSettings(current: Settings, patch: SettingsPatch): Settings {
   const merged: Record<string, unknown> = { ...current };
   for (const [section, values] of Object.entries(patch)) {
-    merged[section] = { ...(current as Record<string, Record<string, unknown>>)[section], ...(values as object) };
+    merged[section] = {
+      ...(current as Record<string, Record<string, unknown>>)[section],
+      ...(values as object),
+    };
   }
   return settingsSchema.parse(merged);
 }

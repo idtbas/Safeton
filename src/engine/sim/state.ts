@@ -111,7 +111,11 @@ export type SwitchArrays = Arrays<typeof SWITCH_FIELDS>;
 export type LinkArrays = Arrays<typeof LINK_FIELDS>;
 export type RackArrays = Arrays<typeof RACK_FIELDS>;
 
-function allocate<F extends Record<string, ArrayCtor>>(fields: F, n: number, sizes: Partial<Record<keyof F, number>> = {}): Arrays<F> {
+function allocate<F extends Record<string, ArrayCtor>>(
+  fields: F,
+  n: number,
+  sizes: Partial<Record<keyof F, number>> = {},
+): Arrays<F> {
   const out = {} as Record<string, unknown>;
   for (const [key, Ctor] of Object.entries(fields)) out[key] = new Ctor(sizes[key as keyof F] ?? n);
   return out as Arrays<F>;
@@ -127,7 +131,9 @@ export interface RuntimeArrays {
 
 export function allocateRuntime(topo: Topology): RuntimeArrays {
   return {
-    nodes: allocate(NODE_FIELDS, topo.nodes.length, { railGbps: topo.nodes.length * Math.max(1, topo.maxRails) }),
+    nodes: allocate(NODE_FIELDS, topo.nodes.length, {
+      railGbps: topo.nodes.length * Math.max(1, topo.maxRails),
+    }),
     gpus: allocate(GPU_FIELDS, topo.gpuCount),
     switches: allocate(SWITCH_FIELDS, topo.switches.length),
     links: allocate(LINK_FIELDS, topo.links.count),
@@ -141,7 +147,9 @@ export function serializeRuntime(rt: RuntimeArrays): SerializedArrays {
   const out: SerializedArrays = {};
   for (const [group, arrays] of Object.entries(rt)) {
     out[group] = {};
-    for (const [key, arr] of Object.entries(arrays as Record<string, ArrayBufferView & { slice(): ArrayBufferView }>)) {
+    for (const [key, arr] of Object.entries(
+      arrays as Record<string, ArrayBufferView & { slice(): ArrayBufferView }>,
+    )) {
       out[group][key] = arr.slice();
     }
   }
@@ -152,7 +160,9 @@ export function restoreRuntime(rt: RuntimeArrays, data: SerializedArrays): void 
   for (const [group, arrays] of Object.entries(rt)) {
     const src = data[group];
     if (!src) throw new Error(`Snapshot is missing runtime group "${group}"`);
-    for (const [key, target] of Object.entries(arrays as Record<string, { length: number; set(a: ArrayLike<number>): void }>)) {
+    for (const [key, target] of Object.entries(
+      arrays as Record<string, { length: number; set(a: ArrayLike<number>): void }>,
+    )) {
       const s = src[key] as unknown as ArrayLike<number> | undefined;
       if (!s) throw new Error(`Snapshot is missing runtime array "${group}.${key}"`);
       if (s.length !== target.length) {

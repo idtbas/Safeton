@@ -42,12 +42,24 @@ const pct = (x: number) => Math.round(x * 100);
 
 class IssueList {
   readonly items: ValidationIssue[] = [];
-  add(severity: IssueSeverity, code: string, path: string, message: string, params?: ValidationIssue['params']) {
+  add(
+    severity: IssueSeverity,
+    code: string,
+    path: string,
+    message: string,
+    params?: ValidationIssue['params'],
+  ) {
     this.items.push(params ? { severity, code, path, message, params } : { severity, code, path, message });
   }
 }
 
-function checkRef(issues: IssueList, kind: CatalogKind, id: string | null | undefined, path: string, cls?: string[]) {
+function checkRef(
+  issues: IssueList,
+  kind: CatalogKind,
+  id: string | null | undefined,
+  path: string,
+  cls?: string[],
+) {
   if (id === null || id === undefined) return;
   const item = tryPart(kind, id);
   if (!item) {
@@ -55,9 +67,15 @@ function checkRef(issues: IssueList, kind: CatalogKind, id: string | null | unde
     return;
   }
   if (cls && 'class' in item && !cls.includes(item.class as string)) {
-    issues.add('error', 'CATALOG_REF_WRONG_CLASS', path, `"${id}" is a ${String(item.class)} unit, expected ${cls.join(' or ')}`, {
-      id,
-    });
+    issues.add(
+      'error',
+      'CATALOG_REF_WRONG_CLASS',
+      path,
+      `"${id}" is a ${String(item.class)} unit, expected ${cls.join(' or ')}`,
+      {
+        id,
+      },
+    );
   }
 }
 
@@ -71,13 +89,25 @@ function checkRange(
   unit = '',
 ) {
   if (!Number.isFinite(value) || value < hard[0] || value > hard[1]) {
-    issues.add('error', 'VALUE_OUT_OF_RANGE', path, `${label} ${value}${unit} is outside the permitted range ${hard[0]}–${hard[1]}${unit}`, {
-      value,
-    });
+    issues.add(
+      'error',
+      'VALUE_OUT_OF_RANGE',
+      path,
+      `${label} ${value}${unit} is outside the permitted range ${hard[0]}–${hard[1]}${unit}`,
+      {
+        value,
+      },
+    );
   } else if (soft && (value < soft[0] || value > soft[1])) {
-    issues.add('warning', 'VALUE_OUTSIDE_RECOMMENDED', path, `${label} ${value}${unit} is outside the recommended range ${soft[0]}–${soft[1]}${unit}`, {
-      value,
-    });
+    issues.add(
+      'warning',
+      'VALUE_OUTSIDE_RECOMMENDED',
+      path,
+      `${label} ${value}${unit} is outside the recommended range ${soft[0]}–${soft[1]}${unit}`,
+      {
+        value,
+      },
+    );
   }
 }
 
@@ -87,38 +117,109 @@ function validateReferences(spec: InfraSpec, issues: IssueList) {
   checkRef(issues, 'ups', site.ups.upsId, 'site.ups.upsId');
   checkRef(issues, 'cooling', site.plant.chillerId, 'site.plant.chillerId', ['chiller']);
   checkRef(issues, 'cooling', site.plant.dryCoolerId, 'site.plant.dryCoolerId', ['drycooler']);
-  checkRange(issues, site.plant.chilledWaterSupplyC, 'site.plant.chilledWaterSupplyC', 'Chilled-water supply', [5, 24], [7, 20], ' °C');
-  checkRange(issues, site.plant.warmWaterSupplyC, 'site.plant.warmWaterSupplyC', 'Warm-water supply (ASHRAE W-class)', [17, 45], [25, 40], ' °C');
-  checkRange(issues, site.energyPriceEurPerKWh, 'site.energyPriceEurPerKWh', 'Energy price', [0, 2], undefined, ' €/kWh');
-  checkRange(issues, site.utility.feedMW, 'site.utility.feedMW', 'Utility feed', [0.01, 2000], undefined, ' MW');
+  checkRange(
+    issues,
+    site.plant.chilledWaterSupplyC,
+    'site.plant.chilledWaterSupplyC',
+    'Chilled-water supply',
+    [5, 24],
+    [7, 20],
+    ' °C',
+  );
+  checkRange(
+    issues,
+    site.plant.warmWaterSupplyC,
+    'site.plant.warmWaterSupplyC',
+    'Warm-water supply (ASHRAE W-class)',
+    [17, 45],
+    [25, 40],
+    ' °C',
+  );
+  checkRange(
+    issues,
+    site.energyPriceEurPerKWh,
+    'site.energyPriceEurPerKWh',
+    'Energy price',
+    [0, 2],
+    undefined,
+    ' €/kWh',
+  );
+  checkRange(
+    issues,
+    site.utility.feedMW,
+    'site.utility.feedMW',
+    'Utility feed',
+    [0.01, 2000],
+    undefined,
+    ' MW',
+  );
   if (spec.fabric.topology !== 'none') checkRef(issues, 'switch', spec.fabric.switchId, 'fabric.switchId');
-  checkRange(issues, spec.fabric.oversubscription, 'fabric.oversubscription', 'Leaf oversubscription', [1, 8], [1, 3]);
+  checkRange(
+    issues,
+    spec.fabric.oversubscription,
+    'fabric.oversubscription',
+    'Leaf oversubscription',
+    [1, 8],
+    [1, 3],
+  );
   if (spec.storage.count > 0) checkRef(issues, 'storage', spec.storage.systemId, 'storage.systemId');
   checkRange(issues, spec.storage.count, 'storage.count', 'Storage system count', [0, 1000]);
 
   spec.halls.forEach((hall, h) => {
     const hp = `halls[${h}]`;
     checkRef(issues, 'cooling', hall.air.unitId, `${hp}.air.unitId`, ['crah', 'inrow']);
-    checkRange(issues, hall.air.supplyC, `${hp}.air.supplyC`, 'Supply air (ASHRAE A1)', [15, 32], [18, 27], ' °C');
+    checkRange(
+      issues,
+      hall.air.supplyC,
+      `${hp}.air.supplyC`,
+      'Supply air (ASHRAE A1)',
+      [15, 32],
+      [18, 27],
+      ' °C',
+    );
     checkRange(issues, hall.air.count, `${hp}.air.count`, 'Air handler count', [0, 10_000]);
     if (hall.liquid) {
       checkRef(issues, 'cooling', hall.liquid.cduId, `${hp}.liquid.cduId`, ['cdu']);
-      checkRange(issues, hall.liquid.supplyC, `${hp}.liquid.supplyC`, 'TCS coolant supply', [17, 45], [25, 40], ' °C');
+      checkRange(
+        issues,
+        hall.liquid.supplyC,
+        `${hp}.liquid.supplyC`,
+        'TCS coolant supply',
+        [17, 45],
+        [25, 40],
+        ' °C',
+      );
     }
     hall.rows.forEach((row, r) => {
       row.rackGroups.forEach((group, g) => {
         const gp = `${hp}.rows[${r}].rackGroups[${g}]`;
         if (!Number.isInteger(group.count) || group.count < 1) {
-          issues.add('error', 'RACK_GROUP_COUNT', `${gp}.count`, `Rack count must be a positive integer (got ${group.count})`);
+          issues.add(
+            'error',
+            'RACK_GROUP_COUNT',
+            `${gp}.count`,
+            `Rack count must be a positive integer (got ${group.count})`,
+          );
         }
         const t = group.template;
         checkRef(issues, 'rack', t.rackId, `${gp}.template.rackId`);
         checkRef(issues, 'pdu', t.pdu.pduId, `${gp}.template.pdu.pduId`);
-        if (t.pdu.perFeed < 1) issues.add('error', 'PDU_COUNT', `${gp}.template.pdu.perFeed`, 'At least one PDU per feed is required');
+        if (t.pdu.perFeed < 1)
+          issues.add(
+            'error',
+            'PDU_COUNT',
+            `${gp}.template.pdu.perFeed`,
+            'At least one PDU per feed is required',
+          );
         if (t.system.kind === 'platform') {
           checkRef(issues, 'platform', t.system.platformId, `${gp}.template.system.platformId`);
           if (!Number.isInteger(t.system.nodesPerRack) || t.system.nodesPerRack < 1) {
-            issues.add('error', 'NODES_PER_RACK', `${gp}.template.system.nodesPerRack`, 'Nodes per rack must be a positive integer');
+            issues.add(
+              'error',
+              'NODES_PER_RACK',
+              `${gp}.template.system.nodesPerRack`,
+              'Nodes per rack must be a positive integer',
+            );
           }
           const platform = tryPart('platform', t.system.platformId);
           if (platform?.class === 'rack-scale-tray') {
@@ -173,14 +274,29 @@ function validateNodeConfig(cfg: ResolvedNodeConfig, path: string, topo: Topolog
   }
   if (cfg.dimm) {
     if (p.dimmSlots === 0) {
-      issues.add('error', 'DIMM_ON_PACKAGE_PLATFORM', `${op}.dimmId`, `${p.name} uses on-package ${cfg.cpu.memory.type}; DIMMs cannot be installed`);
+      issues.add(
+        'error',
+        'DIMM_ON_PACKAGE_PLATFORM',
+        `${op}.dimmId`,
+        `${p.name} uses on-package ${cfg.cpu.memory.type}; DIMMs cannot be installed`,
+      );
     }
     if (cfg.dimmCount > p.dimmSlots) {
-      issues.add('error', 'DIMM_SLOTS_EXCEEDED', `${op}.dimmCount`, `${cfg.dimmCount} DIMMs exceed the ${p.dimmSlots} slots of ${p.name}`);
+      issues.add(
+        'error',
+        'DIMM_SLOTS_EXCEEDED',
+        `${op}.dimmCount`,
+        `${cfg.dimmCount} DIMMs exceed the ${p.dimmSlots} slots of ${p.name}`,
+      );
     }
     const dimmGen = cfg.dimm.type.startsWith('DDR5') ? 'DDR5' : 'DDR4';
     if (dimmGen !== cfg.cpu.memory.type) {
-      issues.add('error', 'DIMM_TYPE_MISMATCH', `${op}.dimmId`, `${cfg.dimm.name} is ${dimmGen}; ${cfg.cpu.name} requires ${cfg.cpu.memory.type}`);
+      issues.add(
+        'error',
+        'DIMM_TYPE_MISMATCH',
+        `${op}.dimmId`,
+        `${cfg.dimm.name} is ${dimmGen}; ${cfg.cpu.name} requires ${cfg.cpu.memory.type}`,
+      );
     }
     const channels = cfg.cpu.memory.channels * cfg.cpuCount;
     if (cfg.dimmCount % channels !== 0) {
@@ -201,7 +317,12 @@ function validateNodeConfig(cfg: ResolvedNodeConfig, path: string, topo: Topolog
     }
   }
   if (cfg.dataDriveCount > p.dataDriveBays) {
-    issues.add('error', 'DRIVE_BAYS_EXCEEDED', `${op}.dataDriveCount`, `${cfg.dataDriveCount} data drives exceed the ${p.dataDriveBays} bays of ${p.name}`);
+    issues.add(
+      'error',
+      'DRIVE_BAYS_EXCEEDED',
+      `${op}.dataDriveCount`,
+      `${cfg.dataDriveCount} data drives exceed the ${p.dataDriveBays} bays of ${p.name}`,
+    );
   }
   if (cfg.psuCount < cfg.psuRequired) {
     issues.add(
@@ -212,7 +333,12 @@ function validateNodeConfig(cfg: ResolvedNodeConfig, path: string, topo: Topolog
       { required: cfg.psuRequired },
     );
   } else if (cfg.psuCount === cfg.psuRequired && cfg.psu.id !== 'busbar-54v-feed') {
-    issues.add('warning', 'PSU_NO_REDUNDANCY', `${op}.psuCount`, `PSUs are not redundant (N = ${cfg.psuRequired}); a single PSU failure triggers power brake`);
+    issues.add(
+      'warning',
+      'PSU_NO_REDUNDANCY',
+      `${op}.psuCount`,
+      `PSUs are not redundant (N = ${cfg.psuRequired}); a single PSU failure triggers power brake`,
+    );
   }
   if (cfg.peakWallW > p.maxPowerW.v * 1.05) {
     issues.add(
@@ -239,12 +365,18 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
   spec.halls.forEach((hall, h) =>
     hall.rows.forEach((row, r) =>
       row.rackGroups.forEach((group, g) => {
-        uses.push({ path: `halls[${h}].rows[${r}].rackGroups[${g}]`, template: group.template, hallIdx: h, rackIdx: rackCursor });
+        uses.push({
+          path: `halls[${h}].rows[${r}].rackGroups[${g}]`,
+          template: group.template,
+          hallIdx: h,
+          rackIdx: rackCursor,
+        });
         rackCursor += group.count;
       }),
     ),
   );
-  if (topo.nodes.length === 0) issues.add('error', 'NO_NODES', 'halls', 'The configuration contains no compute nodes');
+  if (topo.nodes.length === 0)
+    issues.add('error', 'NO_NODES', 'halls', 'The configuration contains no compute nodes');
 
   const rdhxCap = rdhxCapacityW();
   const checkedConfigs = new Set<string>();
@@ -258,9 +390,15 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
     }
     const tp = `${use.path}.template`;
     if (rack.usedU > rack.spec.rackUnits) {
-      issues.add('error', 'RACK_SPACE_EXCEEDED', tp, `${rack.usedU}U required, ${rack.spec.name} provides ${rack.spec.rackUnits}U`, {
-        usedU: rack.usedU,
-      });
+      issues.add(
+        'error',
+        'RACK_SPACE_EXCEEDED',
+        tp,
+        `${rack.usedU}U required, ${rack.spec.name} provides ${rack.spec.rackUnits}U`,
+        {
+          usedU: rack.usedU,
+        },
+      );
     }
     if (rack.weightKg > rack.spec.staticLoadKg.v) {
       issues.add(
@@ -280,18 +418,38 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
         { peakKW: kw(rack.designPeakW), usableKW: kw(pduUsableW) },
       );
     } else if (rack.designPeakW > pduUsableW * 0.9) {
-      issues.add('warning', 'RACK_POWER_HEADROOM_LOW', `${tp}.pdu`, `Rack peak uses ${pct(rack.designPeakW / pduUsableW)} % of usable PDU capacity`);
+      issues.add(
+        'warning',
+        'RACK_POWER_HEADROOM_LOW',
+        `${tp}.pdu`,
+        `Rack peak uses ${pct(rack.designPeakW / pduUsableW)} % of usable PDU capacity`,
+      );
     }
     if (rack.pdu.feeds === 1) {
-      issues.add('warning', 'RACK_SINGLE_FEED', `${tp}.pdu.feeds`, 'Single power feed: a feed or PDU failure takes the whole rack down');
+      issues.add(
+        'warning',
+        'RACK_SINGLE_FEED',
+        `${tp}.pdu.feeds`,
+        'Single power feed: a feed or PDU failure takes the whole rack down',
+      );
     }
     if (rack.rackSystem) {
       const shelves = rack.rackSystem.powerShelves;
       const shelfW = rack.rackSystem.powerShelfKW.v * 1000;
       if (rack.designPeakW > shelves * shelfW) {
-        issues.add('error', 'POWER_SHELF_CAPACITY', tp, `Rack peak ${kw(rack.designPeakW)} kW exceeds ${shelves} power shelves (${kw(shelves * shelfW)} kW)`);
+        issues.add(
+          'error',
+          'POWER_SHELF_CAPACITY',
+          tp,
+          `Rack peak ${kw(rack.designPeakW)} kW exceeds ${shelves} power shelves (${kw(shelves * shelfW)} kW)`,
+        );
       } else if (rack.designPeakW > (shelves / 2) * shelfW) {
-        issues.add('warning', 'POWER_SHELF_REDUNDANCY', tp, `Power shelves are not N+N redundant at peak (${kw(rack.designPeakW)} kW)`);
+        issues.add(
+          'warning',
+          'POWER_SHELF_REDUNDANCY',
+          tp,
+          `Power shelves are not N+N redundant at peak (${kw(rack.designPeakW)} kW)`,
+        );
       }
     }
 
@@ -312,7 +470,12 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
           `${kw(airSideW)} kW per rack exceeds the ${AIR_RACK_MAX_KW} kW limit of room air cooling; use rear-door heat exchangers or direct liquid cooling`,
         );
       } else if (airSideW > AIR_RACK_CONTAINMENT_KW * 1000) {
-        issues.add('warning', 'RACK_AIR_CONTAINMENT', `${tp}.cooling`, `${kw(airSideW)} kW per rack requires hot/cold aisle containment`);
+        issues.add(
+          'warning',
+          'RACK_AIR_CONTAINMENT',
+          `${tp}.cooling`,
+          `${kw(airSideW)} kW per rack requires hot/cold aisle containment`,
+        );
       }
     } else if (rack.cooling === 'rdhx') {
       if (airSideW > rdhxCap) {
@@ -325,10 +488,20 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
       }
     } else {
       if (!topo.halls[use.hallIdx]?.liquidUnit) {
-        issues.add('error', 'LIQUID_LOOP_MISSING', `halls[${use.hallIdx}].liquid`, 'Direct liquid cooled racks require a CDU-fed technology cooling loop in the hall');
+        issues.add(
+          'error',
+          'LIQUID_LOOP_MISSING',
+          `halls[${use.hallIdx}].liquid`,
+          'Direct liquid cooled racks require a CDU-fed technology cooling loop in the hall',
+        );
       }
       if (airSideW > DLC_RESIDUAL_AIR_MAX_KW * 1000) {
-        issues.add('error', 'DLC_RESIDUAL_AIR_LIMIT', `${tp}.cooling`, `Residual air heat ${kw(airSideW)} kW per rack exceeds ${DLC_RESIDUAL_AIR_MAX_KW} kW`);
+        issues.add(
+          'error',
+          'DLC_RESIDUAL_AIR_LIMIT',
+          `${tp}.cooling`,
+          `Residual air heat ${kw(airSideW)} kW per rack exceeds ${DLC_RESIDUAL_AIR_MAX_KW} kW`,
+        );
       }
     }
   }
@@ -337,7 +510,12 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
   const plan = topo.fabric;
   if (plan.error) issues.add('error', 'FABRIC_TOO_LARGE', 'fabric', plan.error);
   if (spec.fabric.topology === 'none' && topo.nodes.length > 1) {
-    issues.add('warning', 'FABRIC_NONE_MULTINODE', 'fabric.topology', 'No backend fabric: jobs are limited to a single node');
+    issues.add(
+      'warning',
+      'FABRIC_NONE_MULTINODE',
+      'fabric.topology',
+      'No backend fabric: jobs are limited to a single node',
+    );
   }
   if (plan.tiers >= 2 && plan.oversubscription > 1.01) {
     issues.add(
@@ -349,7 +527,12 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
   }
   const rails = new Set(topo.nodes.map((n) => n.cfg.rails));
   if (rails.size > 1 && spec.fabric.topology === 'rail-optimized') {
-    issues.add('info', 'FABRIC_MIXED_RAILS', 'fabric', `Nodes have different rail counts (${[...rails].join(', ')}); higher planes serve fewer nodes`);
+    issues.add(
+      'info',
+      'FABRIC_MIXED_RAILS',
+      'fabric',
+      `Nodes have different rail counts (${[...rails].join(', ')}); higher planes serve fewer nodes`,
+    );
   }
 
   // ---- Halls -----------------------------------------------------------------------------
@@ -370,7 +553,12 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
     }
     const hp = `halls[${hall.idx}]`;
     if (room > hall.airInstalledW) {
-      issues.add('error', 'HALL_AIR_CAPACITY', `${hp}.air.count`, `${hall.name}: room air load ${kw(room)} kW exceeds installed ${kw(hall.airInstalledW)} kW`);
+      issues.add(
+        'error',
+        'HALL_AIR_CAPACITY',
+        `${hp}.air.count`,
+        `${hall.name}: room air load ${kw(room)} kW exceeds installed ${kw(hall.airInstalledW)} kW`,
+      );
     } else if (room > hall.airUsableW) {
       issues.add(
         'warning',
@@ -381,9 +569,19 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
     }
     if (liquid > 0) {
       if (liquid > hall.liquidInstalledW) {
-        issues.add('error', 'HALL_LIQUID_CAPACITY', `${hp}.liquid.count`, `${hall.name}: liquid load ${kw(liquid)} kW exceeds installed CDU capacity ${kw(hall.liquidInstalledW)} kW`);
+        issues.add(
+          'error',
+          'HALL_LIQUID_CAPACITY',
+          `${hp}.liquid.count`,
+          `${hall.name}: liquid load ${kw(liquid)} kW exceeds installed CDU capacity ${kw(hall.liquidInstalledW)} kW`,
+        );
       } else if (liquid > hall.liquidUsableW) {
-        issues.add('warning', 'HALL_LIQUID_REDUNDANCY', `${hp}.liquid.count`, `${hall.name}: liquid load ${kw(liquid)} kW exceeds redundant CDU capacity ${kw(hall.liquidUsableW)} kW`);
+        issues.add(
+          'warning',
+          'HALL_LIQUID_REDUNDANCY',
+          `${hp}.liquid.count`,
+          `${hall.name}: liquid load ${kw(liquid)} kW exceeds redundant CDU capacity ${kw(hall.liquidUsableW)} kW`,
+        );
       }
     }
   }
@@ -395,17 +593,37 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
   const chiller = buildPlantParams(topo).chiller;
   const chillerInstalledKW = site.plant.chillers * chiller.capacityKW.v;
   if (chilledLoadKW > chillerInstalledKW) {
-    issues.add('error', 'CHILLER_CAPACITY', 'site.plant.chillers', `Chilled-water load ${Math.round(chilledLoadKW)} kW exceeds installed chiller capacity ${Math.round(chillerInstalledKW)} kW`);
+    issues.add(
+      'error',
+      'CHILLER_CAPACITY',
+      'site.plant.chillers',
+      `Chilled-water load ${Math.round(chilledLoadKW)} kW exceeds installed chiller capacity ${Math.round(chillerInstalledKW)} kW`,
+    );
   } else if (chilledLoadKW > cool.chillerUsableKW) {
-    issues.add('warning', 'CHILLER_REDUNDANCY', 'site.plant.chillers', `Chilled-water load ${Math.round(chilledLoadKW)} kW exceeds ${site.plant.chillerRedundancy} usable chiller capacity`);
+    issues.add(
+      'warning',
+      'CHILLER_REDUNDANCY',
+      'site.plant.chillers',
+      `Chilled-water load ${Math.round(chilledLoadKW)} kW exceeds ${site.plant.chillerRedundancy} usable chiller capacity`,
+    );
   }
   if (site.plant.dryCoolerId && cool.liquidKW > 0) {
     const dc = tryPart('cooling', site.plant.dryCoolerId)!;
     const dcUsableKW = usableUnits('N+1', site.plant.dryCoolers) * dc.capacityKW.v;
     if (cool.liquidKW > site.plant.dryCoolers * dc.capacityKW.v) {
-      issues.add('error', 'DRY_COOLER_CAPACITY', 'site.plant.dryCoolers', `Warm-water load ${Math.round(cool.liquidKW)} kW exceeds dry cooler capacity`);
+      issues.add(
+        'error',
+        'DRY_COOLER_CAPACITY',
+        'site.plant.dryCoolers',
+        `Warm-water load ${Math.round(cool.liquidKW)} kW exceeds dry cooler capacity`,
+      );
     } else if (cool.liquidKW > dcUsableKW) {
-      issues.add('warning', 'DRY_COOLER_REDUNDANCY', 'site.plant.dryCoolers', 'Dry coolers are not N+1 redundant at peak load');
+      issues.add(
+        'warning',
+        'DRY_COOLER_REDUNDANCY',
+        'site.plant.dryCoolers',
+        'Dry coolers are not N+1 redundant at peak load',
+      );
     }
     if (metrics.power.designAmbientC > site.plant.warmWaterSupplyC - 1) {
       issues.add(
@@ -416,7 +634,12 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
       );
     }
   } else if (cool.liquidKW > 0 && !site.plant.dryCoolerId) {
-    issues.add('info', 'LIQUID_ON_CHILLERS', 'site.plant.dryCoolerId', 'Liquid loop heat is rejected through the chiller plant (no dry coolers)');
+    issues.add(
+      'info',
+      'LIQUID_ON_CHILLERS',
+      'site.plant.dryCoolerId',
+      'Liquid loop heat is rejected through the chiller plant (no dry coolers)',
+    );
   }
 
   // ---- Electrical ------------------------------------------------------------------------
@@ -424,9 +647,19 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
   const upsUsableKW = usableUnits(site.ups.redundancy, site.ups.modules) * ups.moduleKW.v;
   const itKW = metrics.power.itPeakKW;
   if (itKW > site.ups.modules * ups.moduleKW.v) {
-    issues.add('error', 'UPS_CAPACITY', 'site.ups.modules', `IT peak ${Math.round(itKW)} kW exceeds installed UPS capacity ${Math.round(site.ups.modules * ups.moduleKW.v)} kW`);
+    issues.add(
+      'error',
+      'UPS_CAPACITY',
+      'site.ups.modules',
+      `IT peak ${Math.round(itKW)} kW exceeds installed UPS capacity ${Math.round(site.ups.modules * ups.moduleKW.v)} kW`,
+    );
   } else if (itKW > upsUsableKW) {
-    issues.add('warning', 'UPS_REDUNDANCY', 'site.ups.modules', `IT peak exceeds ${site.ups.redundancy} usable UPS capacity (${Math.round(upsUsableKW)} kW)`);
+    issues.add(
+      'warning',
+      'UPS_REDUNDANCY',
+      'site.ups.modules',
+      `IT peak exceeds ${site.ups.redundancy} usable UPS capacity (${Math.round(upsUsableKW)} kW)`,
+    );
   }
   const facilityMW = metrics.power.facilityPeakKW / 1000;
   if (facilityMW > site.utility.feedMW) {
@@ -437,16 +670,31 @@ function validateTopology(spec: InfraSpec, topo: Topology, metrics: DerivedMetri
       `Facility peak ${facilityMW.toFixed(2)} MW at ${metrics.power.designAmbientC.toFixed(1)} °C exceeds the ${site.utility.feedMW} MW utility feed`,
     );
   } else if (facilityMW > site.utility.feedMW * 0.9) {
-    issues.add('warning', 'UTILITY_HEADROOM_LOW', 'site.utility.feedMW', `Facility peak uses ${pct(facilityMW / site.utility.feedMW)} % of the utility feed`);
+    issues.add(
+      'warning',
+      'UTILITY_HEADROOM_LOW',
+      'site.utility.feedMW',
+      `Facility peak uses ${pct(facilityMW / site.utility.feedMW)} % of the utility feed`,
+    );
   }
   const genUsableMW = usableUnits(site.generators.redundancy, site.generators.count) * site.generators.unitMW;
   if (facilityMW > genUsableMW) {
-    issues.add('warning', 'GENERATOR_CAPACITY', 'site.generators.count', `Standby generation (${genUsableMW.toFixed(1)} MW usable) cannot carry the ${facilityMW.toFixed(2)} MW facility peak`);
+    issues.add(
+      'warning',
+      'GENERATOR_CAPACITY',
+      'site.generators.count',
+      `Standby generation (${genUsableMW.toFixed(1)} MW usable) cannot carry the ${facilityMW.toFixed(2)} MW facility peak`,
+    );
   }
 
   // ---- Storage ---------------------------------------------------------------------------
   if (spec.storage.count === 0) {
-    issues.add('warning', 'STORAGE_NONE', 'storage.count', 'No shared storage: checkpoints are written to local NVMe and are lost with the node');
+    issues.add(
+      'warning',
+      'STORAGE_NONE',
+      'storage.count',
+      'No shared storage: checkpoints are written to local NVMe and are lost with the node',
+    );
   } else if (topo.gpuCount > 0) {
     const perGpu = metrics.storage.writeGBs / topo.gpuCount;
     if (perGpu < 0.1) {

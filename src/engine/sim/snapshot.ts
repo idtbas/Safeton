@@ -76,7 +76,8 @@ export function buildSnapshot(
   const c = sim.cluster;
   const plantSpec = topo.spec.site.plant;
   let fabricCapacity = 0;
-  for (let l = 0; l < topo.links.count; l++) if (topo.links.tier[l] === 0) fabricCapacity += topo.links.bandwidthGbps[l]!;
+  for (let l = 0; l < topo.links.count; l++)
+    if (topo.links.tier[l] === 0) fabricCapacity += topo.links.bandwidthGbps[l]!;
 
   return {
     tick: sim.tick,
@@ -119,7 +120,10 @@ export function buildSnapshot(
         airUnitsInstalled: h.spec.air.count,
         liquidSupplyC: h.liquidUnit ? rt.liquidSupplyC : null,
         liquidSupplySetpointC: h.liquidUnit ? rt.liquidSetpointC : null,
-        liquidCapacityW: h.liquidUnit && h.spec.liquid ? (h.spec.liquid.count - rt.liquidUnitsFailed) * h.liquidUnit.capacityKW.v * 1000 : 0,
+        liquidCapacityW:
+          h.liquidUnit && h.spec.liquid
+            ? (h.spec.liquid.count - rt.liquidUnitsFailed) * h.liquidUnit.capacityKW.v * 1000
+            : 0,
         liquidUnitsHealthy: h.spec.liquid ? h.spec.liquid.count - rt.liquidUnitsFailed : 0,
         liquidUnitsInstalled: h.spec.liquid?.count ?? 0,
       };
@@ -221,13 +225,17 @@ export function buildNodeDetail(sim: Simulation, i: number): NodeDetail {
       rail: r,
       model: cfg.computeNic.name,
       speedGbps: cfg.computeNic.portSpeedGbps,
-      up: powered && (n.nicDownMask[i]! & (1 << r)) === 0 && (leaf < 0 || (sim.rt.switches.failed[leaf] === 0 && sim.rt.switches.adminUp[leaf] === 1)),
+      up:
+        powered &&
+        (n.nicDownMask[i]! & (1 << r)) === 0 &&
+        (leaf < 0 || (sim.rt.switches.failed[leaf] === 0 && sim.rt.switches.adminUp[leaf] === 1)),
       leaf: leaf >= 0 ? sim.topo.switches[leaf]!.name : null,
       txGbps: n.railGbps[i * mr + r]!,
     });
   }
   const faults: string[] = [];
-  for (const [bit, name] of Object.entries(NODE_FAULT_NAMES)) if (n.faults[i]! & Number(bit)) faults.push(name);
+  for (const [bit, name] of Object.entries(NODE_FAULT_NAMES))
+    if (n.faults[i]! & Number(bit)) faults.push(name);
 
   const h = sim.nodeHist;
   const len = h.filled;
@@ -260,10 +268,20 @@ export function buildNodeDetail(sim: Simulation, i: number): NodeDetail {
       rest: Math.max(0, n.dcW[i]! - n.gpuW[i]!),
       conversionLoss: Math.max(0, n.wallW[i]! - n.dcW[i]!),
     },
-    psu: { model: cfg.psu.name, installed: cfg.psuCount, healthy: cfg.psuCount - n.psuFailed[i]!, required: cfg.psuRequired },
+    psu: {
+      model: cfg.psu.name,
+      installed: cfg.psuCount,
+      healthy: cfg.psuCount - n.psuFailed[i]!,
+      required: cfg.psuRequired,
+    },
     fans: { installed: cfg.fanCount, healthy: fansHealthy, duty: n.fanDuty[i]! },
     inletC: n.inletC[i]!,
-    cpu: { model: cfg.cpu.name, sockets: cfg.cpuCount, cores: cfg.cpuCount * cfg.cpu.cores, util: powered ? n.cpuUtil[i]! : 0 },
+    cpu: {
+      model: cfg.cpu.name,
+      sockets: cfg.cpuCount,
+      cores: cfg.cpuCount * cfg.cpu.cores,
+      util: powered ? n.cpuUtil[i]! : 0,
+    },
     memory: {
       totalGB: cfg.hostMemoryGB,
       usedGB: memUsed,
@@ -272,11 +290,23 @@ export function buildNodeDetail(sim: Simulation, i: number): NodeDetail {
       dimms: cfg.dimmCount,
     },
     nics,
-    storage: { model: cfg.dataDrive.name, count: cfg.dataDriveCount, capacityTB: cfg.dataDrive.capacityTB * cfg.dataDriveCount },
+    storage: {
+      model: cfg.dataDrive.name,
+      count: cfg.dataDriveCount,
+      capacityTB: cfg.dataDrive.capacityTB * cfg.dataDriveCount,
+    },
     gpus,
     stateSince: n.stateSince[i]!,
-    uptimeS: powered && n.state[i] !== NodeState.Post && n.state[i] !== NodeState.Booting ? (sim.time - n.upSince[i]!) / 1000 : 0,
-    history: { util: series(h.util), tempC: series(h.temp), powerW: series(h.power), intervalS: NODE_HISTORY_INTERVAL_S },
+    uptimeS:
+      powered && n.state[i] !== NodeState.Post && n.state[i] !== NodeState.Booting
+        ? (sim.time - n.upSince[i]!) / 1000
+        : 0,
+    history: {
+      util: series(h.util),
+      tempC: series(h.temp),
+      powerW: series(h.power),
+      intervalS: NODE_HISTORY_INTERVAL_S,
+    },
   };
 }
 
@@ -306,7 +336,13 @@ export function buildTopologyInfo(sim: Simulation): TopologyInfo {
       leafGroup: nd.leafGroup,
       nvlDomain: nd.nvlDomain,
     })),
-    switches: topo.switches.map((s) => ({ name: s.name, tier: s.tier, plane: s.plane, model: s.spec.name, rack: s.rackIdx })),
+    switches: topo.switches.map((s) => ({
+      name: s.name,
+      tier: s.tier,
+      plane: s.plane,
+      model: s.spec.name,
+      rack: s.rackIdx,
+    })),
     storage: topo.storage.map((s) => ({ name: s.name, model: s.spec.name, rack: s.rackIdx })),
     gpuCount: topo.gpuCount,
     fabric: {

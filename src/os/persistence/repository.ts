@@ -2,10 +2,23 @@
  * Typed persistence repository: loads documents with migration and validation, quarantines
  * anything corrupt instead of crashing, and produces / consumes export bundles.
  */
-import { INFRA_SPEC_VERSION, SIM_STATE_FORMAT, SIM_STATE_VERSION, validateInfra, type InfraSpec, type SimStateBlob } from '../../engine';
+import {
+  INFRA_SPEC_VERSION,
+  SIM_STATE_FORMAT,
+  SIM_STATE_VERSION,
+  validateInfra,
+  type InfraSpec,
+  type SimStateBlob,
+} from '../../engine';
 import { SETTINGS_SCHEMA_VERSION, defaultSettings, settingsSchema, type Settings } from '../settings/schema';
 import { decodeJson, encodeJson } from './codec';
-import { EXPORT_FORMAT, EXPORT_VERSION, exportBundleSchema, infraSpecSchema, simStateEnvelopeSchema } from './schemas';
+import {
+  EXPORT_FORMAT,
+  EXPORT_VERSION,
+  exportBundleSchema,
+  infraSpecSchema,
+  simStateEnvelopeSchema,
+} from './schemas';
 import type { DocKey, DocumentStore, StoredDoc } from './store';
 
 /** Current schema version per document type. */
@@ -32,7 +45,8 @@ export function migrate(key: DocKey, doc: StoredDoc): unknown {
   const target = CURRENT_VERSIONS[key];
   let version = doc.schemaVersion;
   let data = doc.data;
-  if (version > target) throw new Error(`${key} was written by a newer version (schema ${version} > ${target})`);
+  if (version > target)
+    throw new Error(`${key} was written by a newer version (schema ${version} > ${target})`);
   while (version < target) {
     const step = MIGRATIONS[key][version];
     if (!step) throw new Error(`No migration for ${key} from schema ${version}`);
@@ -97,7 +111,8 @@ export class Repository {
   loadSimState(): Promise<LoadResult<SimStateBlob>> {
     return this.loadDoc('sim-state', (d) => {
       const parsed = simStateEnvelopeSchema.parse(d);
-      if (parsed.version !== SIM_STATE_VERSION) throw new Error(`Unsupported state version ${parsed.version}`);
+      if (parsed.version !== SIM_STATE_VERSION)
+        throw new Error(`Unsupported state version ${parsed.version}`);
       return d as SimStateBlob;
     });
   }
@@ -140,7 +155,8 @@ export class Repository {
     }
     const envelope = exportBundleSchema.safeParse(raw);
     if (!envelope.success) throw new Error('Not a Safeton export file (missing or wrong format header)');
-    if (envelope.data.version > EXPORT_VERSION) throw new Error(`Export version ${envelope.data.version} is newer than this system supports`);
+    if (envelope.data.version > EXPORT_VERSION)
+      throw new Error(`Export version ${envelope.data.version} is newer than this system supports`);
     const out: ExportBundle = {
       format: EXPORT_FORMAT,
       version: envelope.data.version,
@@ -151,12 +167,16 @@ export class Repository {
     if (envelope.data.infra !== undefined) {
       const spec = infraSpecSchema.parse(envelope.data.infra) as InfraSpec;
       const report = validateInfra(spec);
-      if (!report.ok) throw new Error(`Imported infrastructure has ${report.errors} validation error(s): ${report.issues[0]?.message ?? ''}`);
+      if (!report.ok)
+        throw new Error(
+          `Imported infrastructure has ${report.errors} validation error(s): ${report.issues[0]?.message ?? ''}`,
+        );
       out.infra = spec;
     }
     if (envelope.data.simState !== undefined) {
       const st = simStateEnvelopeSchema.parse(envelope.data.simState);
-      if (st.format !== SIM_STATE_FORMAT || st.version !== SIM_STATE_VERSION) throw new Error('Unsupported simulation state in export');
+      if (st.format !== SIM_STATE_FORMAT || st.version !== SIM_STATE_VERSION)
+        throw new Error('Unsupported simulation state in export');
       out.simState = envelope.data.simState as SimStateBlob;
     }
     return out;
