@@ -22,6 +22,7 @@ export const GPUS: readonly GpuSpec[] = [
     processNode: 'TSMC N7',
     launchYear: 2020,
     computeUnits: 108,
+    boostClockMHz: vendor(1410),
     peak: {
       fp64: vendor(9.7),
       fp64Tensor: vendor(19.5),
@@ -58,6 +59,7 @@ export const GPUS: readonly GpuSpec[] = [
     processNode: 'TSMC 4N',
     launchYear: 2022,
     computeUnits: 132,
+    boostClockMHz: vendor(1980),
     peak: {
       fp64: vendor(34),
       fp64Tensor: vendor(67),
@@ -94,6 +96,7 @@ export const GPUS: readonly GpuSpec[] = [
     processNode: 'TSMC 4N',
     launchYear: 2024,
     computeUnits: 132,
+    boostClockMHz: vendor(1980),
     peak: {
       fp64: vendor(34),
       fp64Tensor: vendor(67),
@@ -130,6 +133,7 @@ export const GPUS: readonly GpuSpec[] = [
     processNode: 'TSMC 4NP',
     launchYear: 2025,
     computeUnits: 148,
+    boostClockMHz: est(1965),
     peak: {
       fp64: vendor(37, 'HGX B200 total / 8'),
       fp64Tensor: vendor(37, 'HGX B200 total / 8'),
@@ -166,6 +170,7 @@ export const GPUS: readonly GpuSpec[] = [
     processNode: 'TSMC 4NP',
     launchYear: 2025,
     computeUnits: 148,
+    boostClockMHz: est(2062),
     peak: {
       fp64: vendor(45, 'GB200 NVL72 total / 72'),
       fp64Tensor: vendor(45, 'GB200 NVL72 total / 72'),
@@ -207,6 +212,7 @@ export const GPUS: readonly GpuSpec[] = [
     processNode: 'TSMC N5 / N6 (chiplets)',
     launchYear: 2023,
     computeUnits: 304,
+    boostClockMHz: vendor(2100),
     peak: {
       fp64: vendor(81.7),
       fp64Tensor: vendor(163.4),
@@ -243,6 +249,7 @@ export const GPUS: readonly GpuSpec[] = [
     processNode: 'TSMC N5 / N6 (chiplets)',
     launchYear: 2024,
     computeUnits: 304,
+    boostClockMHz: vendor(2100),
     peak: {
       fp64: vendor(81.7),
       fp64Tensor: vendor(163.4),

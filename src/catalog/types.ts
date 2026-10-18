@@ -52,6 +52,8 @@ export interface GpuSpec {
   readonly launchYear: number;
   /** Streaming multiprocessors (NVIDIA) or compute units (AMD). */
   readonly computeUnits: number;
+  /** Maximum boost clock of the graphics/compute domain (MHz). */
+  readonly boostClockMHz: Q;
   /** All values in TFLOPS (TOPS for INT8). */
   readonly peak: {
     readonly fp64: Q;

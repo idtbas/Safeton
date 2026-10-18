@@ -22,8 +22,9 @@ export function leakageFactor(tempC: number): number {
  */
 export function gpuPowerW(idleW: number, tdpW: number, activity: number, clock: number, tempC: number): number {
   const pStatic = idleW * leakageFactor(tempC);
-  const pDyn = (tdpW - idleW) * activity * Math.pow(clock, DVFS_EXPONENT);
-  return pStatic + pDyn;
+  if (activity === 0) return pStatic;
+  const scale = clock === 1 ? 1 : Math.pow(clock, DVFS_EXPONENT);
+  return pStatic + (tdpW - idleW) * activity * scale;
 }
 
 /** Highest clock fraction that keeps the GPU at or below `limitW` for the given activity. */
