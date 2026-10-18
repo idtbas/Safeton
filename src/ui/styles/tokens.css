@@ -1,0 +1,187 @@
+/*
+ * Safeton design tokens.
+ * Surfaces, ink, lines, accent (OKLCH, hue configurable), status, data-viz ramps, type,
+ * spacing, radii, elevation and motion. Dark is the default; light is a selected theme with
+ * its own steps, never an automatic inversion.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Accent — hue and chroma are set from settings (applyAppearance). */
+  --accent-h: 195;
+  --accent-c: 0.13;
+  --accent: oklch(0.76 var(--accent-c) var(--accent-h));
+  --accent-strong: oklch(0.84 var(--accent-c) var(--accent-h));
+  --accent-weak: oklch(0.76 var(--accent-c) var(--accent-h) / 0.14);
+  --accent-line: oklch(0.76 var(--accent-c) var(--accent-h) / 0.45);
+  --accent-ink: oklch(0.18 0.02 var(--accent-h));
+
+  /* Surfaces */
+  --bg-0: #07090c;
+  --bg-1: #0d1015;
+  --bg-2: #12161c;
+  --bg-3: #181d25;
+  --bg-4: #1f252f;
+  --bg-overlay: rgb(4 6 9 / 0.72);
+  --surface-glass: rgb(16 20 26 / 0.82);
+
+  /* Ink */
+  --text-1: #e7eaee;
+  --text-2: #a6adb8;
+  --text-3: #6f7782;
+  --text-disabled: #4a515b;
+  --text-on-accent: var(--accent-ink);
+
+  /* Lines */
+  --line-1: rgb(255 255 255 / 0.065);
+  --line-2: rgb(255 255 255 / 0.11);
+  --line-3: rgb(255 255 255 / 0.18);
+  --focus-ring: 0 0 0 1px var(--bg-1), 0 0 0 3px var(--accent-line);
+
+  /* Status (fixed, never themed; always paired with icon + label) */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+  --status-info: #5598e7;
+  --status-neutral: #7d8590;
+  --status-good-weak: rgb(12 163 12 / 0.14);
+  --status-warning-weak: rgb(250 178 25 / 0.14);
+  --status-serious-weak: rgb(236 131 90 / 0.15);
+  --status-critical-weak: rgb(208 59 59 / 0.16);
+  --status-info-weak: rgb(85 152 231 / 0.14);
+  --status-neutral-weak: rgb(125 133 144 / 0.14);
+  --delta-good-text: #2fbf4a;
+
+  /* Data-viz: categorical (validated against --viz-surface, dark), sequential blue ramp */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --seq-100: #cde2fb;
+  --seq-200: #9ec5f4;
+  --seq-300: #6da7ec;
+  --seq-400: #3987e5;
+  --seq-500: #256abf;
+  --seq-600: #184f95;
+  --seq-700: #0d366b;
+  --viz-surface: var(--bg-1);
+  --viz-grid: #222831;
+  --viz-axis: #353c47;
+  --viz-deemphasis: #5b6470;
+
+  /* Typography */
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-scale: 1;
+  --fs-2xs: calc(10px * var(--font-scale));
+  --fs-xs: calc(11px * var(--font-scale));
+  --fs-sm: calc(12px * var(--font-scale));
+  --fs-md: calc(13px * var(--font-scale));
+  --fs-lg: calc(15px * var(--font-scale));
+  --fs-xl: calc(18px * var(--font-scale));
+  --fs-2xl: calc(24px * var(--font-scale));
+  --fs-hero: calc(44px * var(--font-scale));
+  --lh-tight: 1.2;
+  --lh-normal: 1.45;
+  --tracking-label: 0.07em;
+
+  /* Spacing (4 px grid) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --control-h: 28px;
+  --control-h-sm: 24px;
+  --row-h: 28px;
+
+  /* Radii */
+  --r-xs: 3px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-pill: 999px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 8px 24px rgb(0 0 0 / 0.45), 0 2px 6px rgb(0 0 0 / 0.35);
+  --shadow-3: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 24px 64px rgb(0 0 0 / 0.55), 0 6px 18px rgb(0 0 0 / 0.4);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-1: 90ms;
+  --dur-2: 160ms;
+  --dur-3: 260ms;
+  --dur-4: 420ms;
+}
+
+:root[data-density='comfortable'] {
+  --control-h: 32px;
+  --control-h-sm: 28px;
+  --row-h: 34px;
+}
+
+:root[data-motion='reduced'] {
+  --dur-1: 0ms;
+  --dur-2: 0ms;
+  --dur-3: 0ms;
+  --dur-4: 0ms;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --accent: oklch(0.55 var(--accent-c) var(--accent-h));
+  --accent-strong: oklch(0.47 var(--accent-c) var(--accent-h));
+  --accent-weak: oklch(0.55 var(--accent-c) var(--accent-h) / 0.12);
+  --accent-line: oklch(0.55 var(--accent-c) var(--accent-h) / 0.45);
+  --accent-ink: #ffffff;
+
+  --bg-0: #e9ecf0;
+  --bg-1: #fbfbfc;
+  --bg-2: #f3f5f7;
+  --bg-3: #e9ecf0;
+  --bg-4: #dfe3e8;
+  --bg-overlay: rgb(16 22 30 / 0.36);
+  --surface-glass: rgb(251 251 252 / 0.86);
+
+  --text-1: #0d1117;
+  --text-2: #4a525d;
+  --text-3: #7a828d;
+  --text-disabled: #b3b9c1;
+
+  --line-1: rgb(13 17 23 / 0.07);
+  --line-2: rgb(13 17 23 / 0.12);
+  --line-3: rgb(13 17 23 / 0.2);
+
+  --delta-good-text: #006300;
+  --status-good-weak: rgb(12 163 12 / 0.12);
+  --status-warning-weak: rgb(250 178 25 / 0.18);
+  --status-serious-weak: rgb(236 131 90 / 0.16);
+  --status-critical-weak: rgb(208 59 59 / 0.12);
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --viz-grid: #e4e6ea;
+  --viz-axis: #c5cad1;
+  --viz-deemphasis: #a3aab4;
+
+  --shadow-1: 0 1px 2px rgb(13 17 23 / 0.08);
+  --shadow-2: 0 8px 24px rgb(13 17 23 / 0.12), 0 2px 6px rgb(13 17 23 / 0.08);
+  --shadow-3: 0 24px 64px rgb(13 17 23 / 0.18), 0 6px 18px rgb(13 17 23 / 0.1);
+}

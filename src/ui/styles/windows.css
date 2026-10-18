@@ -1,0 +1,182 @@
+/* Window chrome (used by the window manager) */
+.os-workspace {
+  position: relative;
+  height: 420px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 1px 1px, var(--line-1) 1px, transparent 0) 0 0 / 20px 20px,
+    var(--bg-0);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+}
+
+.os-window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--bg-1);
+  box-shadow: var(--shadow-2);
+  animation: os-window-in var(--dur-3) var(--ease-out);
+}
+
+.os-window[data-focused='true'] {
+  border-color: var(--line-3);
+  box-shadow: var(--shadow-3);
+}
+
+.os-window[data-maximized='true'] {
+  border-radius: 0;
+}
+
+@keyframes os-window-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.os-window__titlebar {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--line-1);
+  cursor: default;
+  user-select: none;
+  touch-action: none;
+}
+
+.os-window__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.os-window[data-focused='true'] .os-window__title {
+  color: var(--text-1);
+}
+
+.os-window__controls {
+  display: flex;
+  gap: 2px;
+}
+
+.os-window__controls button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.os-window__controls button:hover {
+  background: var(--bg-3);
+  color: var(--text-1);
+}
+
+.os-window__controls .os-window__close:hover {
+  background: var(--status-critical);
+  color: #fff;
+}
+
+.os-window__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.os-window__edge {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+}
+
+.os-window__edge--n,
+.os-window__edge--s {
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.os-window__edge--n {
+  top: -3px;
+}
+
+.os-window__edge--s {
+  bottom: -3px;
+}
+
+.os-window__edge--e,
+.os-window__edge--w {
+  top: 8px;
+  bottom: 8px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.os-window__edge--e {
+  right: -3px;
+}
+
+.os-window__edge--w {
+  left: -3px;
+}
+
+.os-window__edge--ne,
+.os-window__edge--nw,
+.os-window__edge--se,
+.os-window__edge--sw {
+  width: 12px;
+  height: 12px;
+}
+
+.os-window__edge--ne {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.os-window__edge--sw {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+
+.os-window__edge--nw {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.os-window__edge--se {
+  bottom: -4px;
+  right: -4px;
+  cursor: nwse-resize;
+}
+
+.os-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  z-index: 100000;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  transform: translateX(-50%);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--surface-glass);
+  backdrop-filter: blur(12px);
+}
