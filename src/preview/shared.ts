@@ -1,4 +1,5 @@
 import type { CommandResult, JobState, NodeStateName, Severity } from '../engine';
+import { confirmCommand } from '../os/confirm';
 import { command } from '../os/kernel';
 import { useNotificationStore } from '../os/notifications/store';
 import type { Tone } from '../ui';
@@ -47,8 +48,15 @@ export const SEVERITY_TONE: Record<Severity, Exclude<Tone, 'accent'>> = {
   critical: 'critical',
 };
 
-/** Executes a command and reports failures (and optionally success) as notifications. */
-export async function run(cmd: Parameters<typeof command>[0], announce = false): Promise<CommandResult> {
+/**
+ * Executes a command (after confirmation, for critical commands when enabled in the security
+ * settings) and reports failures (and optionally success) as notifications.
+ */
+export async function run(
+  cmd: Parameters<typeof command>[0],
+  announce = false,
+): Promise<CommandResult | null> {
+  if (!(await confirmCommand(cmd))) return null;
   const result = await command(cmd);
   const push = useNotificationStore.getState().push;
   if (!result.ok)

@@ -13,3 +13,7 @@ export { Progress, Meter, Segments, type ProgressTone } from './components/Progr
 export { ToastViewport } from './components/Toasts';
 export { cx } from './cx';
 export * as fmt from './format';
+export { Stepper, type StepperItem } from './components/Stepper';
+export { CardSelect, type CardOption } from './components/CardSelect';
+export { NumberInput } from './components/NumberInput';
+export { PasswordInput } from './components/PasswordInput';
