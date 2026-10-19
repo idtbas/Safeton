@@ -1,15 +1,19 @@
+/**
+ * Workload management: plan and submit training and inference jobs (the engine's auto-planner
+ * validates parallelism and memory before submission) and operate the running jobs.
+ */
 import { Rocket, Square } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { CATALOG } from '../catalog';
-import type { InferencePlan, JobSpec, JobSummary, PlanQueryResult, TrainingPlan } from '../engine';
-import { query } from '../os/kernel';
-import { useEngineStore } from '../os/engine/store';
+import { CATALOG } from '../../catalog';
+import type { InferencePlan, JobSpec, JobSummary, PlanQueryResult, TrainingPlan } from '../../engine';
+import { useEngineStore } from '../../os/engine/store';
+import { useT } from '../../os/i18n';
+import { query } from '../../os/kernel';
 import {
   Badge,
   Button,
   Input,
   KeyValue,
-  Panel,
   Progress,
   Select,
   StatusBadge,
@@ -18,13 +22,15 @@ import {
   Toggle,
   fmt,
   type Column,
-} from '../ui';
-import { JOB_STATE_TONE, run } from './shared';
+} from '../../ui';
+import { AppFrame, AppStatusBar } from '../common/AppLayout';
+import { ACTIVE_JOB_STATES, JOB_STATE_TONE, jobStateKey, run } from '../common/shared';
 
 type Kind = 'training' | 'inference';
 const NO_JOBS: JobSummary[] = [];
 
-export function WorkloadPanel() {
+export function WorkloadsApp() {
+  const t = useT();
   const topo = useEngineStore((s) => s.topology);
   const jobs = useEngineStore((s) => s.snapshot?.jobs ?? NO_JOBS);
   const [kind, setKind] = useState<Kind>('training');
@@ -110,31 +116,27 @@ export function WorkloadPanel() {
   }, [spec]);
 
   const models = CATALOG.models.map((m) => ({ value: m.id, label: m.name }));
-  const active = jobs.filter((j) =>
-    ['pending', 'initializing', 'running', 'checkpointing', 'restarting'].includes(j.state),
-  ).length;
+  const active = jobs.filter((j) => ACTIVE_JOB_STATES.includes(j.state)).length;
+  const running = jobs.filter((j) => j.state === 'running').length;
+  const gpusInUse = jobs.filter((j) => ACTIVE_JOB_STATES.includes(j.state)).reduce((n, j) => n + j.gpus, 0);
 
   return (
-    <Panel
-      title="Workloads"
-      subtitle={`${active} active · ${jobs.length} listed`}
-      icon={<Rocket size={14} />}
-      flush
-    >
-      <div className="pv-workloads">
-        <div className="pv-workloads__form">
+    <AppFrame>
+      <div className="ap-workloads">
+        <div className="ap-workloads__form">
+          <h3 className="ap-pane-title">{t('wl.newJob')}</h3>
           <Tabs<Kind>
             items={[
-              { id: 'training', label: 'Training' },
-              { id: 'inference', label: 'Inference' },
+              { id: 'training', label: t('wl.training') },
+              { id: 'inference', label: t('wl.inference') },
             ]}
             value={kind}
             onChange={setKind}
-            label="Workload type"
+            label={t('wl.type')}
           />
           {kind === 'training' ? (
-            <div className="pv-form-grid">
-              <Select label="Model" value={model} options={models} onChange={setModel} />
+            <div className="ap-form-grid">
+              <Select label={t('wl.model')} value={model} options={models} onChange={setModel} />
               <Input
                 label="GPUs"
                 type="number"
@@ -142,27 +144,27 @@ export function WorkloadPanel() {
                 step={gpusPerNode}
                 value={gpus}
                 onChange={(e) => setGpus(Number(e.target.value))}
-                hint={`of ${fmt.formatNumber(totalGpus)}`}
+                hint={t('wl.ofGpus', { n: fmt.formatNumber(totalGpus) })}
                 mono
               />
               <Select
-                label="Precision"
+                label={t('wl.precision')}
                 value={precision}
                 options={[
                   { value: 'bf16', label: 'BF16' },
-                  { value: 'fp8', label: 'FP8 (hybrid)' },
+                  { value: 'fp8', label: t('wl.fp8hybrid') },
                 ]}
                 onChange={setPrecision}
               />
               <Input
-                label="Sequence length"
+                label={t('wl.seqLen')}
                 type="number"
                 value={seqLen}
                 onChange={(e) => setSeqLen(Number(e.target.value))}
                 mono
               />
               <Input
-                label="Global batch"
+                label={t('wl.batch')}
                 type="number"
                 value={batch}
                 onChange={(e) => setBatch(Number(e.target.value))}
@@ -170,30 +172,30 @@ export function WorkloadPanel() {
                 mono
               />
               <Input
-                label="Token target"
+                label={t('wl.tokens')}
                 type="number"
                 value={tokensB}
                 onChange={(e) => setTokensB(Number(e.target.value))}
-                suffix="B"
+                suffix={t('wl.billion')}
                 mono
               />
               <Input
-                label="Checkpoint every"
+                label={t('wl.ckpt')}
                 type="number"
                 value={ckptMin}
                 onChange={(e) => setCkptMin(Number(e.target.value))}
                 suffix="min"
                 mono
               />
-              <div className="pv-form-grid__toggle">
-                <Toggle checked={asyncCkpt} onChange={setAsyncCkpt} label="Async checkpoint" />
+              <div className="ap-form-grid__toggle">
+                <Toggle checked={asyncCkpt} onChange={setAsyncCkpt} label={t('wl.asyncCkpt')} />
               </div>
             </div>
           ) : (
-            <div className="pv-form-grid">
-              <Select label="Model" value={infModel} options={models} onChange={setInfModel} />
+            <div className="ap-form-grid">
+              <Select label={t('wl.model')} value={infModel} options={models} onChange={setInfModel} />
               <Input
-                label="Replicas"
+                label={t('wl.replicas')}
                 type="number"
                 min={1}
                 value={replicas}
@@ -201,7 +203,7 @@ export function WorkloadPanel() {
                 mono
               />
               <Select
-                label="Tensor parallel"
+                label={t('wl.tp')}
                 value={String(tp)}
                 options={[1, 2, 4, 8]
                   .filter((x) => x <= gpusPerNode)
@@ -209,7 +211,7 @@ export function WorkloadPanel() {
                 onChange={(v) => setTp(Number(v))}
               />
               <Select
-                label="Precision"
+                label={t('wl.precision')}
                 value={infPrecision}
                 options={[
                   { value: 'fp8', label: 'FP8' },
@@ -218,7 +220,7 @@ export function WorkloadPanel() {
                 onChange={setInfPrecision}
               />
               <Input
-                label="Offered load"
+                label={t('wl.load')}
                 type="number"
                 value={rate}
                 onChange={(e) => setRate(Number(e.target.value))}
@@ -226,14 +228,14 @@ export function WorkloadPanel() {
                 mono
               />
               <Input
-                label="Input tokens"
+                label={t('wl.inTokens')}
                 type="number"
                 value={inTok}
                 onChange={(e) => setInTok(Number(e.target.value))}
                 mono
               />
               <Input
-                label="Output tokens"
+                label={t('wl.outTokens')}
                 type="number"
                 value={outTok}
                 onChange={(e) => setOutTok(Number(e.target.value))}
@@ -248,51 +250,63 @@ export function WorkloadPanel() {
             disabled={!plan?.ok}
             onClick={() => void run({ type: 'job.submit', job: spec }, true)}
           >
-            Submit job
+            {t('wl.submit')}
           </Button>
         </div>
-        <div className="pv-workloads__jobs">
+        <div className="ap-workloads__jobs">
           <JobsTable jobs={jobs} />
         </div>
       </div>
-    </Panel>
+      <AppStatusBar>
+        <span>{t('wl.status.active', { n: active })}</span>
+        <span>{t('wl.status.running', { n: running })}</span>
+        <span>
+          {t('wl.status.gpus', { used: fmt.formatNumber(gpusInUse), total: fmt.formatNumber(totalGpus) })}
+        </span>
+        <span className="ap-statusbar__right">{t('wl.status.listed', { n: jobs.length })}</span>
+      </AppStatusBar>
+    </AppFrame>
   );
 }
 
 function PlanSummary({ plan }: { plan: PlanQueryResult | null }) {
-  if (!plan) return <div className="pv-plan sf-muted">Planning…</div>;
+  const t = useT();
+  if (!plan) return <div className="ap-plan sf-muted">{t('wl.planning')}</div>;
   if (!plan.ok)
     return (
-      <div className="pv-plan pv-plan--error">
+      <div className="ap-plan ap-plan--error">
         <StatusBadge tone="critical" label={plan.code} />
         <p>{plan.message}</p>
       </div>
     );
   const p = plan.plan;
   if ('dp' in p) {
-    const t = p as TrainingPlan;
+    const tp = p as TrainingPlan;
     return (
-      <div className="pv-plan">
-        <div className="sf-label">Auto-planner (nominal, healthy fabric)</div>
+      <div className="ap-plan">
+        <div className="sf-label">{t('wl.autoPlanner')}</div>
         <KeyValue
           items={[
             [
-              'Layout',
-              `TP${t.tp} · PP${t.pp}${t.interleave > 1 ? ` (v${t.interleave})` : ''} · DP${t.dp} · ${t.recompute} recompute`,
+              t('wl.plan.layout'),
+              `TP${tp.tp} · PP${tp.pp}${tp.interleave > 1 ? ` (v${tp.interleave})` : ''} · DP${tp.dp} · ${tp.recompute} recompute`,
             ],
-            ['Memory / GPU', `${fmt.formatNumber(t.memoryGB.total, 1, 1)} / ${t.hbmGB} GB`],
+            [t('wl.plan.memory'), `${fmt.formatNumber(tp.memoryGB.total, 1, 1)} / ${tp.hbmGB} GB`],
             [
-              'Step time',
-              `${fmt.formatNumber(t.nominalStepS, 2, 2)} s · pipeline bubble +${fmt.percent(t.bubbleFraction, 0)}`,
+              t('wl.plan.step'),
+              t('wl.plan.stepValue', {
+                s: fmt.formatNumber(tp.nominalStepS, 2, 2),
+                bubble: fmt.percent(tp.bubbleFraction, 0),
+              }),
             ],
-            ['MFU', fmt.percent(t.nominalMfu)],
-            ['Throughput', `${fmt.compact(t.tokensPerStep / t.nominalStepS)} tok/s`],
-            ['Duration', fmt.duration(t.totalSteps * t.nominalStepS)],
-            ['Checkpoint', fmt.q(fmt.bytesGB(t.checkpointGB))],
+            ['MFU', fmt.percent(tp.nominalMfu)],
+            [t('wl.plan.throughput'), `${fmt.compact(tp.tokensPerStep / tp.nominalStepS)} tok/s`],
+            [t('wl.plan.duration'), fmt.duration(tp.totalSteps * tp.nominalStepS)],
+            [t('wl.plan.checkpoint'), fmt.q(fmt.bytesGB(tp.checkpointGB))],
           ]}
         />
-        {t.notes.map((n) => (
-          <p key={n} className="pv-plan__note">
+        {tp.notes.map((n) => (
+          <p key={n} className="ap-plan__note">
             {n}
           </p>
         ))}
@@ -301,17 +315,17 @@ function PlanSummary({ plan }: { plan: PlanQueryResult | null }) {
   }
   const i = p as InferencePlan;
   return (
-    <div className="pv-plan">
-      <div className="sf-label">Serving plan</div>
+    <div className="ap-plan">
+      <div className="sf-label">{t('wl.servingPlan')}</div>
       <KeyValue
         items={[
-          ['Nodes', `${i.nodes} (${i.replicasPerNode} replica/node)`],
-          ['Weights / GPU', fmt.q(fmt.bytesGB(i.weightsGBPerGpu))],
-          ['KV capacity', `${fmt.compact(i.kvCapacityTokensPerReplica)} tokens/replica`],
-          ['Max concurrency', `${i.maxConcurrentPerReplica} seq/replica`],
+          [t('wl.plan.nodes'), t('wl.plan.nodesValue', { nodes: i.nodes, rpn: i.replicasPerNode })],
+          [t('wl.plan.weights'), fmt.q(fmt.bytesGB(i.weightsGBPerGpu))],
+          [t('wl.plan.kv'), t('wl.plan.kvValue', { n: fmt.compact(i.kvCapacityTokensPerReplica) })],
+          [t('wl.plan.concurrency'), t('wl.plan.concurrencyValue', { n: i.maxConcurrentPerReplica })],
           ['Prefill', `${fmt.formatNumber(i.prefillSecondsPerRequest * 1000, 0, 0)} ms/request`],
-          ['Decode floor', `${fmt.formatNumber(i.minDecodeStepS * 1000, 1, 1)} ms/token`],
-          ['Peak throughput', `${fmt.compact(i.maxThroughputTokS)} tok/s`],
+          [t('wl.plan.decode'), `${fmt.formatNumber(i.minDecodeStepS * 1000, 1, 1)} ms/token`],
+          [t('wl.plan.peak'), `${fmt.compact(i.maxThroughputTokS)} tok/s`],
         ]}
       />
     </div>
@@ -319,32 +333,34 @@ function PlanSummary({ plan }: { plan: PlanQueryResult | null }) {
 }
 
 function JobsTable({ jobs }: { jobs: JobSummary[] }) {
+  const t = useT();
   const columns: Column<JobSummary>[] = [
     {
       id: 'id',
-      header: 'Job',
+      header: t('wl.col.job'),
       width: '64px',
       cell: (j) => <span className="mono">{j.id}</span>,
       sortValue: (j) => j.id,
     },
     {
       id: 'name',
-      header: 'Name',
+      header: t('wl.col.name'),
       width: 'minmax(150px, 1.4fr)',
       cell: (j) => (
         <span title={j.reason ?? undefined} style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {j.name} <span className="sf-muted">· {j.kind}</span>
+          {j.name}{' '}
+          <span className="sf-muted">· {t(j.kind === 'training' ? 'wl.training' : 'wl.inference')}</span>
         </span>
       ),
     },
     {
       id: 'state',
-      header: 'State',
-      width: '124px',
+      header: t('wl.col.state'),
+      width: '130px',
       cell: (j) => (
         <StatusBadge
           tone={JOB_STATE_TONE[j.state]}
-          label={j.state}
+          label={t(jobStateKey(j.state))}
           pulse={j.state === 'initializing' || j.state === 'checkpointing'}
         />
       ),
@@ -359,13 +375,13 @@ function JobsTable({ jobs }: { jobs: JobSummary[] }) {
     },
     {
       id: 'progress',
-      header: 'Progress',
+      header: t('wl.col.progress'),
       width: 'minmax(120px, 1fr)',
       cell: (j) =>
         j.kind === 'training' ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
             <div style={{ flex: 1 }}>
-              <Progress value={j.progress} thin label={`Job ${j.id} progress`} />
+              <Progress value={j.progress} thin label={t('wl.progressOf', { id: j.id })} />
             </div>
             <span className="mono sf-muted" style={{ fontSize: 'var(--fs-xs)' }}>
               {fmt.percent(j.progress, 1)}
@@ -380,7 +396,7 @@ function JobsTable({ jobs }: { jobs: JobSummary[] }) {
     },
     {
       id: 'perf',
-      header: 'Performance',
+      header: t('wl.col.performance'),
       width: '170px',
       cell: (j) =>
         j.kind === 'training' ? (
@@ -396,7 +412,7 @@ function JobsTable({ jobs }: { jobs: JobSummary[] }) {
     },
     {
       id: 'restarts',
-      header: 'Rst',
+      header: t('wl.col.restarts'),
       width: '44px',
       align: 'right',
       cell: (j) =>
@@ -412,7 +428,7 @@ function JobsTable({ jobs }: { jobs: JobSummary[] }) {
     },
     {
       id: 'eta',
-      header: 'ETA',
+      header: t('wl.col.eta'),
       width: '78px',
       align: 'right',
       cell: (j) => (j.etaS !== null && j.state !== 'completed' ? fmt.duration(j.etaS) : '—'),
@@ -422,20 +438,20 @@ function JobsTable({ jobs }: { jobs: JobSummary[] }) {
       header: '',
       width: '40px',
       cell: (j) =>
-        ['pending', 'initializing', 'running', 'checkpointing', 'restarting'].includes(j.state) ? (
+        ACTIVE_JOB_STATES.includes(j.state) ? (
           <Button
             size="sm"
             variant="ghost"
             iconOnly
             icon={<Square size={12} />}
-            aria-label={`Cancel job ${j.id}`}
-            title="Cancel job"
+            aria-label={t('wl.cancelN', { id: j.id })}
+            title={t('cmd.job.cancel')}
             onClick={() => void run({ type: 'job.cancel', jobId: j.id })}
           />
         ) : null,
     },
   ];
   return (
-    <Table rows={jobs} columns={columns} rowKey={(j) => j.id} empty="No jobs submitted yet" label="Jobs" />
+    <Table rows={jobs} columns={columns} rowKey={(j) => j.id} empty={t('wl.empty')} label={t('wl.jobs')} />
   );
 }

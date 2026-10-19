@@ -206,6 +206,15 @@ describe('settings migration v1 → v2', () => {
     expect(value!.system).toMatchObject({ hostname: 'legacy-01', setupComplete: true, operatorName: '' });
   });
 
+  it('upgrades v2 → v3 with the desktop defaults', async () => {
+    const store = new MemoryDocumentStore();
+    await store.put('settings', 2, { appearance: { theme: 'light' }, system: { setupComplete: true } });
+    const { value } = await new Repository(store).loadSettings();
+    expect(value!.appearance.theme).toBe('light');
+    expect(value!.desktop).toMatchObject({ wallpaper: 'nebula', showIcons: true, dockMagnify: true });
+    expect(value!.desktop.dockApps).toContain('settings');
+  });
+
   it('registers a migration for every settings version below the current one', () => {
     for (let v = 1; v < SETTINGS_SCHEMA_VERSION; v++) expect(MIGRATIONS.settings[v]).toBeTypeOf('function');
   });

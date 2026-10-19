@@ -69,7 +69,12 @@ export function SetupWizard({ phase, send }: { phase: ShellPhase; send: (e: Shel
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
   }, []);
-  if (!initial) return <div className="sh-setup sh-setup--loading" aria-busy />;
+  if (!initial)
+    return (
+      <div className="sh-setup-stage">
+        <div className="os-wallpaper" data-wallpaper="nebula" aria-hidden />
+      </div>
+    );
   return <Wizard initial={initial.draft} resumed={initial.resumed} phase={phase} send={send} />;
 }
 
@@ -199,128 +204,125 @@ function Wizard({
   const reachable = phase === 'setup' ? Math.min(reachableStep(draft), SUMMARY) : -1;
 
   return (
-    <div className="sh-setup">
-      <aside className="sh-setup__side">
-        <div className="sh-setup__brand">
-          <BrandMark size={28} />
-          <div>
-            <div className="sh-setup__product">SAFETON</div>
-            <div className="sf-muted">{t('setup.title')}</div>
-          </div>
+    <div className="sh-setup-stage">
+      <div className="os-wallpaper" data-wallpaper="nebula" aria-hidden />
+      <div className="sh-setup" role="dialog" aria-label={t('setup.title')}>
+        <div className="sh-setup__titlebar" aria-hidden>
+          <BrandMark size={14} />
+          <span>{t('setup.windowTitle')}</span>
         </div>
-        <Stepper
-          label={t('ui.stepper.label')}
-          doneLabel={t('ui.stepper.done')}
-          currentLabel={t('ui.stepper.current')}
-          current={draft.current}
-          completed={draft.completed}
-          reachable={reachable}
-          onSelect={phase === 'setup' ? goto : undefined}
-          items={SETUP_STEPS.map((s) => ({
-            id: s,
-            title: t(`setup.step.${s}.title` as MessageKey),
-            description: t(`setup.step.${s}.desc` as MessageKey),
-          }))}
-        />
-        <p className="sh-setup__notice sf-muted">{t('common.simulationNotice')}</p>
-      </aside>
+        <aside className="sh-setup__side">
+          <Stepper
+            label={t('ui.stepper.label')}
+            doneLabel={t('ui.stepper.done')}
+            currentLabel={t('ui.stepper.current')}
+            current={draft.current}
+            completed={draft.completed}
+            reachable={reachable}
+            onSelect={phase === 'setup' ? goto : undefined}
+            items={SETUP_STEPS.map((s) => ({
+              id: s,
+              title: t(`setup.step.${s}.title` as MessageKey),
+              description: t(`setup.step.${s}.desc` as MessageKey),
+            }))}
+          />
+          <p className="sh-setup__notice sf-muted">{t('common.simulationNotice')}</p>
+        </aside>
 
-      <main className="sh-setup__main">
-        <div className="sh-setup__mobile-progress" aria-hidden>
-          <span style={{ width: `${((draft.current + 1) / SETUP_STEPS.length) * 100}%` }} />
-        </div>
-        <header className="sh-setup__header">
-          <div className="sh-setup__heading">
-            <span className="sf-label">
-              {t('setup.stepOf', { n: draft.current + 1, total: SETUP_STEPS.length })}
-            </span>
-            <h1 ref={headingRef} tabIndex={-1}>
-              {t(`setup.step.${step}.title` as MessageKey)}
-            </h1>
-            <p className="sf-secondary">{t(`setup.step.${step}.desc` as MessageKey)}</p>
-          </div>
-          {phase === 'setup' && (
-            <div className="sh-setup__lang">
-              <Select
-                aria-label={t('setup.region.language')}
-                value={data.region.locale}
-                options={LOCALES}
-                onChange={(locale) => update((d) => ({ ...d, region: { ...d.region, locale } }))}
-              />
+        <main className="sh-setup__main">
+          <header className="sh-setup__header">
+            <div className="sh-setup__heading">
+              <span className="sf-label">
+                {t('setup.stepOf', { n: draft.current + 1, total: SETUP_STEPS.length })}
+              </span>
+              <h1 ref={headingRef} tabIndex={-1}>
+                {t(`setup.step.${step}.title` as MessageKey)}
+              </h1>
+              <p className="sf-secondary">{t(`setup.step.${step}.desc` as MessageKey)}</p>
             </div>
-          )}
-        </header>
-
-        <div className="sh-setup__body" ref={bodyRef}>
-          <form
-            className="sh-setup__form"
-            noValidate
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!summaryBlocked) void next();
-            }}
-          >
-            {showResumed && (
-              <p className="sh-note" data-tone="info" role="status">
-                <RotateCcw size={14} /> {t('setup.resumed')}
-              </p>
+            {phase === 'setup' && (
+              <div className="sh-setup__lang">
+                <Select
+                  aria-label={t('setup.region.language')}
+                  value={data.region.locale}
+                  options={LOCALES}
+                  onChange={(locale) => update((d) => ({ ...d, region: { ...d.region, locale } }))}
+                />
+              </div>
             )}
-            {hasErrors && (
-              <p className="sh-note" data-tone="critical" role="alert">
-                {t('setup.fixErrors')}
-              </p>
-            )}
-            {Step ? <Step {...props} /> : <InitializeStep {...props} onDone={onInitialized} />}
-            {/* Enter in any field submits the step. */}
-            <button type="submit" hidden tabIndex={-1} aria-hidden />
-          </form>
-          {live && (
-            <LiveDesignPanel
-              report={design.report}
-              pending={design.pending}
-              t={t}
-              goto={goto}
-              current={draft.current}
-            />
-          )}
-        </div>
+          </header>
 
-        {step !== 'initialize' && (
-          <footer className="sh-setup__footer">
-            <Button
-              variant="ghost"
-              icon={<ArrowLeft size={14} />}
-              disabled={draft.current === 0 || busy}
-              onClick={() => dispatch({ type: 'back' })}
+          <div className="sh-setup__body" ref={bodyRef}>
+            <form
+              className="sh-setup__form"
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!summaryBlocked) void next();
+              }}
             >
-              {t('common.back')}
-            </Button>
-            <span className="sh-setup__saved sf-muted" role="status" aria-live="polite">
-              {saved === 'saving' ? (
-                <Loader2 size={12} className="sh-spin" />
-              ) : saved === 'saved' ? (
-                <>
-                  <Cloud size={12} /> {t('setup.saved')}
-                </>
-              ) : null}
-            </span>
-            <Button
-              variant="primary"
-              loading={busy}
-              disabled={summaryBlocked}
-              icon={step === 'summary' ? <Check size={14} /> : undefined}
-              onClick={() => void next()}
-            >
-              {busy
-                ? t('setup.admin.hashing')
-                : step === 'summary'
-                  ? t('setup.finish')
-                  : t('common.continue')}
-              {step !== 'summary' && !busy && <ArrowRight size={14} />}
-            </Button>
-          </footer>
-        )}
-      </main>
+              {showResumed && (
+                <p className="sh-note" data-tone="info" role="status">
+                  <RotateCcw size={14} /> {t('setup.resumed')}
+                </p>
+              )}
+              {hasErrors && (
+                <p className="sh-note" data-tone="critical" role="alert">
+                  {t('setup.fixErrors')}
+                </p>
+              )}
+              {Step ? <Step {...props} /> : <InitializeStep {...props} onDone={onInitialized} />}
+              {/* Enter in any field submits the step. */}
+              <button type="submit" hidden tabIndex={-1} aria-hidden />
+            </form>
+            {live && (
+              <LiveDesignPanel
+                report={design.report}
+                pending={design.pending}
+                t={t}
+                goto={goto}
+                current={draft.current}
+              />
+            )}
+          </div>
+
+          {step !== 'initialize' && (
+            <footer className="sh-setup__footer">
+              <Button
+                variant="ghost"
+                icon={<ArrowLeft size={14} />}
+                disabled={draft.current === 0 || busy}
+                onClick={() => dispatch({ type: 'back' })}
+              >
+                {t('common.back')}
+              </Button>
+              <span className="sh-setup__saved sf-muted" role="status" aria-live="polite">
+                {saved === 'saving' ? (
+                  <Loader2 size={12} className="sh-spin" />
+                ) : saved === 'saved' ? (
+                  <>
+                    <Cloud size={12} /> {t('setup.saved')}
+                  </>
+                ) : null}
+              </span>
+              <Button
+                variant="primary"
+                loading={busy}
+                disabled={summaryBlocked}
+                icon={step === 'summary' ? <Check size={14} /> : undefined}
+                onClick={() => void next()}
+              >
+                {busy
+                  ? t('setup.admin.hashing')
+                  : step === 'summary'
+                    ? t('setup.finish')
+                    : t('common.continue')}
+                {step !== 'summary' && !busy && <ArrowRight size={14} />}
+              </Button>
+            </footer>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

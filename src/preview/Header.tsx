@@ -3,7 +3,7 @@ import { APP_VERSION } from '../os/kernel';
 import { useEngineStore } from '../os/engine/store';
 import { Badge, Tooltip, fmt } from '../ui';
 
-export function Header({ route }: { route: string }) {
+export function Header() {
   const snap = useEngineStore((s) => s.snapshot);
   const mode = useEngineStore((s) => s.mode);
   const storage = useEngineStore((s) => s.storageKind);
@@ -30,14 +30,11 @@ export function Header({ route }: { route: string }) {
           />
         </svg>
         <span className="pv-brand__name">SAFETON</span>
-        <span className="pv-brand__tag">Engineering Preview</span>
+        <span className="pv-brand__tag">Developer</span>
       </div>
       <nav className="pv-nav" aria-label="Preview sections">
-        <a href="#/">Console</a>
-        <a href="#/preview" aria-current={!route.startsWith('#/components') ? 'page' : undefined}>
-          Simulation
-        </a>
-        <a href="#/components" aria-current={route.startsWith('#/components') ? 'page' : undefined}>
+        <a href="#/">← Console</a>
+        <a href="#/components" aria-current="page">
           Design system
         </a>
       </nav>

@@ -4,6 +4,7 @@ import { hashPassword } from './auth/credentials';
 import {
   authenticate,
   bootCore,
+  changePassword,
   completeSetup,
   controlEngine,
   currentAccount,
@@ -61,5 +62,11 @@ describe('kernel: first-run setup and sign-in', () => {
     const ok = await authenticate(' ADA ', 'Correct-Horse-42!');
     expect(ok.ok).toBe(true);
     expect(loginLockoutMs()).toBe(0);
+
+    // Password change: the current password is verified, the policy enforced.
+    expect(await changePassword('Correct-Horse-42!', 'short')).toMatchObject({ ok: false, reason: 'policy' });
+    expect(await changePassword('Correct-Horse-42!', 'Another-Secret-77')).toEqual({ ok: true });
+    expect((await authenticate('ada', 'Correct-Horse-42!')).ok).toBe(false);
+    expect((await authenticate('ada', 'Another-Secret-77')).ok).toBe(true);
   });
 });

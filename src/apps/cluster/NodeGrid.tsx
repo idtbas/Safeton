@@ -4,9 +4,10 @@
  * ring for degraded nodes. Scales to tens of thousands of cells.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { NODE_STATE_NAMES, NodeState, type Snapshot, type TopologyInfo } from '../engine';
-import { fmt } from '../ui';
-import { NODE_STATE_LABEL } from './shared';
+import { NODE_STATE_NAMES, NodeState, type Snapshot, type TopologyInfo } from '../../engine';
+import { useT, type MessageKey } from '../../os/i18n';
+import { fmt } from '../../ui';
+import { nodeStateKey } from '../common/shared';
 
 export type GridMetric = 'util' | 'temp' | 'power';
 
@@ -36,6 +37,7 @@ export function NodeGrid({
   selected: number | null;
   onSelect: (node: number) => void;
 }) {
+  const t = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [width, setWidth] = useState(600);
@@ -120,12 +122,12 @@ export function NodeGrid({
 
   const h = hover;
   return (
-    <div ref={wrapRef} className="pv-grid">
+    <div ref={wrapRef} className="ap-grid">
       <canvas
         ref={canvasRef}
         style={{ width: cols * pitch, height }}
         role="img"
-        aria-label={`Fleet map of ${n} nodes coloured by ${metric}`}
+        aria-label={t('cluster.map.aria', { n, metric: t(`cluster.metric.${metric}` as MessageKey) })}
         onMouseMove={(e) => {
           const i = indexAt(e);
           setHover(i >= 0 ? { i, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY } : null);
@@ -137,41 +139,41 @@ export function NodeGrid({
         }}
       />
       {h && (
-        <div className="pv-grid__tip" style={{ left: Math.min(h.x + 14, width - 220), top: h.y + 14 }}>
+        <div className="ap-grid__tip" style={{ left: Math.min(h.x + 14, width - 220), top: h.y + 14 }}>
           <div className="mono" style={{ fontWeight: 600 }}>
             {topology.nodes[h.i]!.hostname}
           </div>
           <div className="sf-muted">
             {topology.racks[topology.nodes[h.i]!.rack]!.name} ·{' '}
-            {NODE_STATE_LABEL[NODE_STATE_NAMES[snapshot.nodes.state[h.i]!]!]}
+            {t(nodeStateKey(NODE_STATE_NAMES[snapshot.nodes.state[h.i]!]!))}
           </div>
           <div className="mono">
-            util {fmt.percent(snapshot.nodes.gpuUtil[h.i]!, 0)} ·{' '}
+            GPU {fmt.percent(snapshot.nodes.gpuUtil[h.i]!, 0)} ·{' '}
             {fmt.temperature(snapshot.nodes.gpuTempMax[h.i]!)} ·{' '}
             {fmt.q(fmt.power(snapshot.nodes.powerW[h.i]!))}
           </div>
-          {snapshot.nodes.job[h.i]! >= 0 && <div className="sf-muted">job {snapshot.nodes.job[h.i]}</div>}
+          {snapshot.nodes.job[h.i]! >= 0 && (
+            <div className="sf-muted">{t('cluster.jobN', { id: snapshot.nodes.job[h.i]! })}</div>
+          )}
         </div>
       )}
-      <div className="pv-grid__legend">
-        <span className="sf-muted">
-          {metric === 'util' ? 'GPU util' : metric === 'temp' ? 'Max GPU temp' : 'Node power'}
-        </span>
+      <div className="ap-grid__legend">
+        <span className="sf-muted">{t(`cluster.metric.${metric}` as MessageKey)}</span>
         <span
-          className="pv-grid__ramp"
+          className="ap-grid__ramp"
           style={{ background: `linear-gradient(to right, ${rampFor(metric).join(',')})` }}
         />
         <span className="sf-muted mono">
           {metric === 'util' ? '0–100 %' : metric === 'temp' ? '25–90 °C' : `0–max`}
         </span>
-        <span className="pv-grid__key" style={{ background: 'var(--bg-4)' }} />{' '}
-        <span className="sf-muted">off / maint.</span>
-        <span className="pv-grid__key" style={{ background: 'var(--status-info)' }} />{' '}
-        <span className="sf-muted">booting</span>
-        <span className="pv-grid__key" style={{ boxShadow: 'inset 0 0 0 1px var(--status-warning)' }} />{' '}
-        <span className="sf-muted">degraded</span>
-        <span className="pv-grid__key" style={{ background: 'var(--status-critical)' }} />{' '}
-        <span className="sf-muted">failed</span>
+        <span className="ap-grid__key" style={{ background: 'var(--bg-4)' }} />{' '}
+        <span className="sf-muted">{t('cluster.legend.off')}</span>
+        <span className="ap-grid__key" style={{ background: 'var(--status-info)' }} />{' '}
+        <span className="sf-muted">{t('cluster.legend.booting')}</span>
+        <span className="ap-grid__key" style={{ boxShadow: 'inset 0 0 0 1px var(--status-warning)' }} />{' '}
+        <span className="sf-muted">{t('cluster.legend.degraded')}</span>
+        <span className="ap-grid__key" style={{ background: 'var(--status-critical)' }} />{' '}
+        <span className="sf-muted">{t('cluster.legend.failed')}</span>
       </div>
     </div>
   );

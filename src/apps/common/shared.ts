@@ -1,8 +1,13 @@
-import type { CommandResult, JobState, NodeStateName, Severity } from '../engine';
-import { confirmCommand } from '../os/confirm';
-import { command } from '../os/kernel';
-import { useNotificationStore } from '../os/notifications/store';
-import type { Tone } from '../ui';
+/**
+ * Helpers shared by the applications: command execution with confirmation and notifications,
+ * and tone / label mappings for engine states.
+ */
+import type { CommandResult, JobState, NodeStateName, Severity } from '../../engine';
+import { confirmCommand } from '../../os/confirm';
+import { t, type MessageKey } from '../../os/i18n';
+import { command } from '../../os/kernel';
+import { useNotificationStore } from '../../os/notifications/store';
+import type { Tone } from '../../ui';
 
 export const NODE_STATE_TONE: Record<NodeStateName, Exclude<Tone, 'accent'>> = {
   offline: 'neutral',
@@ -14,18 +19,6 @@ export const NODE_STATE_TONE: Record<NodeStateName, Exclude<Tone, 'accent'>> = {
   maintenance: 'neutral',
   failed: 'critical',
   'shutting-down': 'info',
-};
-
-export const NODE_STATE_LABEL: Record<NodeStateName, string> = {
-  offline: 'Offline',
-  post: 'POST',
-  booting: 'Booting',
-  online: 'Online',
-  degraded: 'Degraded',
-  draining: 'Draining',
-  maintenance: 'Maintenance',
-  failed: 'Failed',
-  'shutting-down': 'Shutting down',
 };
 
 export const JOB_STATE_TONE: Record<JobState, Exclude<Tone, 'accent'>> = {
@@ -48,9 +41,21 @@ export const SEVERITY_TONE: Record<Severity, Exclude<Tone, 'accent'>> = {
   critical: 'critical',
 };
 
+export const ACTIVE_JOB_STATES: JobState[] = [
+  'pending',
+  'initializing',
+  'running',
+  'checkpointing',
+  'restarting',
+];
+
+export const nodeStateKey = (s: NodeStateName) => `node.state.${s}` as MessageKey;
+export const jobStateKey = (s: JobState) => `job.state.${s}` as MessageKey;
+export const severityKey = (s: Severity) => `severity.${s}` as MessageKey;
+
 /**
- * Executes a command (after confirmation, for critical commands when enabled in the security
- * settings) and reports failures (and optionally success) as notifications.
+ * Executes a command (after confirmation for critical commands when enabled in the security
+ * settings) and reports failures — and optionally success — as notifications.
  */
 export async function run(
   cmd: Parameters<typeof command>[0],
@@ -62,7 +67,7 @@ export async function run(
   if (!result.ok)
     push({
       severity: 'warning',
-      title: `Command rejected: ${cmd.type}`,
+      title: t('cmd.rejected', { type: cmd.type }),
       body: `${result.error.code} — ${result.error.message}`,
       source: 'operator',
     });

@@ -25,7 +25,14 @@ import { ingestSnapshot, useEngineStore } from './engine/store';
 import { useNotificationStore } from './notifications/store';
 import { Repository } from './persistence/repository';
 import { openDocumentStore } from './persistence/store';
-import { accountSchema, loginBackoffMs, verifyPassword, type Account } from './auth/credentials';
+import {
+  accountSchema,
+  assessPassword,
+  hashPassword,
+  loginBackoffMs,
+  verifyPassword,
+  type Account,
+} from './auth/credentials';
 import { useAlertStore } from './alerts';
 import { t } from './i18n';
 import { SETTINGS_SCHEMA_VERSION, defaultSettings, type Settings } from './settings/schema';
@@ -568,6 +575,33 @@ export async function authenticate(username: string, password: string): Promise<
   const delay = loginBackoffMs(failedLogins.count);
   failedLogins.until = Date.now() + delay;
   return { ok: false, reason: 'invalid', waitMs: delay };
+}
+
+export type PasswordChangeResult =
+  { ok: true } | { ok: false; reason: 'invalid' | 'policy' | 'lockout'; waitMs?: number };
+
+/**
+ * Changes the administrator password: the current password is verified (same lock-out rules
+ * as the sign-in), the new one must meet the policy and is stored as a fresh PBKDF2 credential.
+ */
+export async function changePassword(current: string, next: string): Promise<PasswordChangeResult> {
+  const acc = account;
+  if (!acc) return { ok: false, reason: 'invalid' };
+  const auth = await authenticate(acc.username, current);
+  if (!auth.ok) return { ok: false, reason: auth.reason, waitMs: auth.waitMs };
+  if (assessPassword(next, acc.username).problems.length > 0) return { ok: false, reason: 'policy' };
+  account = accountSchema.parse({ ...acc, credential: await hashPassword(next) });
+  await requireKernel().repo.saveAccount(account);
+  return { ok: true };
+}
+
+/** Updates the administrator's display name (also mirrored into the settings). */
+export async function updateDisplayName(displayName: string): Promise<void> {
+  const acc = account;
+  if (!acc) return;
+  account = accountSchema.parse({ ...acc, displayName });
+  await requireKernel().repo.saveAccount(account);
+  useSettingsStore.getState().update({ system: { operatorName: displayName } });
 }
 
 /** Wipes everything (settings, account, infrastructure, state) and restarts into setup. */

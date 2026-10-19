@@ -30,7 +30,7 @@ import {
 } from '../../os/kernel';
 import { useSettingsStore } from '../../os/settings/store';
 import type { ShellEvent, ShellPhase } from '../../os/shell/machine';
-import { Button, Kbd, Progress, fmt } from '../../ui';
+import { Button, Kbd, fmt } from '../../ui';
 import { collectHostInfo } from './hostInfo';
 
 type Stage = 'firmware' | 'kernel' | 'infrastructure' | 'handover';
@@ -356,127 +356,126 @@ export function BootScreen({ phase, send }: { phase: ShellPhase; send: (e: Shell
   }, [stageState, checks, kernelSteps]);
 
   const current = STAGES.find((s) => stageState[s] === 'running' || stageState[s] === 'failed') ?? 'handover';
-  const recent = lines.slice(-6);
+  const activeCheck = [...checks].reverse().find((c) => c.status === 'running') ?? checks[checks.length - 1];
+  const statusLine = activeCheck
+    ? `${activeCheck.label} — ${activeCheck.detail}`
+    : (lines[lines.length - 1]?.text ?? '');
+
+  if (verbose)
+    return (
+      <main className="sh-console" data-reduced={reduced || undefined} aria-busy={!error}>
+        <div
+          ref={logRef}
+          className="sh-console__log"
+          role="log"
+          aria-live="polite"
+          aria-label={t('boot.verbose')}
+          tabIndex={0}
+        >
+          <div className="sh-console__banner">
+            Safeton {APP_VERSION} — {t(STAGE_KEY[current])}
+          </div>
+          {lines.map((l) => (
+            <div key={l.id} className="sh-boot__logline" data-level={l.level}>
+              <span className="sh-boot__ts">[{(l.at / 1000).toFixed(6).padStart(11, ' ')}]</span>{' '}
+              {l.level === 'ok' ? (
+                <span className="sh-console__ok">[ OK ]</span>
+              ) : l.level === 'warn' ? (
+                <span className="sh-console__warn">[ WARN ]</span>
+              ) : l.level === 'fail' ? (
+                <span className="sh-console__fail">[FAILED]</span>
+              ) : null}{' '}
+              {l.text}
+            </div>
+          ))}
+          {!error && <div className="sh-console__cursor" aria-hidden />}
+        </div>
+        <footer className="sh-console__footer">
+          <span>
+            <Kbd>V</Kbd> {t('boot.graphical')} · <Kbd>Esc</Kbd> {t('boot.skip')}
+          </span>
+          <span className="mono">{Math.round(progress * 100)} %</span>
+        </footer>
+        {error && <BootError error={error} t={t} />}
+      </main>
+    );
 
   return (
     <main className="sh-boot" data-reduced={reduced || undefined} aria-busy={!error}>
-      <div className="sh-boot__inner">
-        <header className="sh-boot__brand">
-          <BrandMark />
-          <div>
-            <div className="sh-boot__name">SAFETON</div>
-            <div className="sh-boot__sub">AI Infrastructure OS · {APP_VERSION}</div>
-          </div>
-        </header>
-
-        {verbose ? (
-          <div
-            ref={logRef}
-            className="sh-boot__log"
-            role="log"
-            aria-live="polite"
-            aria-label={t('boot.verbose')}
-            tabIndex={0}
-          >
-            {lines.map((l) => (
-              <div key={l.id} className="sh-boot__logline" data-level={l.level}>
-                <span className="sh-boot__ts">[{(l.at / 1000).toFixed(6).padStart(11, ' ')}]</span> {l.text}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <ol className="sh-boot__stages" aria-label="Boot stages">
-              {STAGES.map((s) => (
-                <li key={s} data-state={stageState[s]}>
-                  <span className="sh-boot__stage-mark" aria-hidden>
-                    {stageState[s] === 'done' ? (
-                      <Check size={12} strokeWidth={3} />
-                    ) : stageState[s] === 'running' ? (
-                      <Loader2 size={12} className="sh-spin" />
-                    ) : stageState[s] === 'failed' ? (
-                      <AlertTriangle size={12} />
-                    ) : null}
-                  </span>
-                  {t(STAGE_KEY[s])}
-                </li>
-              ))}
-            </ol>
-            <Progress value={progress} label={t(STAGE_KEY[current])} />
-            {checks.length > 0 && (
-              <ul className="sh-boot__checks">
-                {checks.map((c) => (
-                  <li key={c.id} data-status={c.status}>
-                    <span className="sh-boot__check-mark" aria-hidden>
-                      {c.status === 'ok' ? (
-                        <Check size={12} strokeWidth={3} />
-                      ) : c.status === 'warn' ? (
-                        <AlertTriangle size={12} />
-                      ) : c.status === 'running' ? (
-                        <Loader2 size={12} className="sh-spin" />
-                      ) : null}
-                    </span>
-                    <span className="sh-boot__check-label">{c.label}</span>
-                    <span className="sh-boot__check-detail mono">{c.detail}</span>
-                    {c.status === 'running' && c.progress !== undefined && (
-                      <span className="sh-boot__check-bar">
-                        <Progress value={c.progress} thin />
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="sh-boot__tail mono" aria-live="polite">
-              {recent.map((l) => (
-                <div key={l.id} data-level={l.level}>
-                  {l.text}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {error ? (
-          <div className="sh-boot__error" role="alert">
-            <strong>{t('boot.failed')}</strong>
-            <span className="mono">{error}</span>
-            <div className="sh-row">
-              <Button icon={<RotateCcw size={14} />} onClick={() => location.reload()}>
-                {t('common.retry')}
-              </Button>
-              <Button variant="danger" onClick={() => void resetAndReconfigure()}>
-                {t('boot.reset')}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <footer className="sh-boot__footer">
-            <span className="sf-muted">
-              <Kbd>Esc</Kbd> {t('boot.skip')} · <Kbd>V</Kbd> {t('boot.verbose')}
-            </span>
-            <span className="sh-row">
-              <Button
-                size="sm"
-                variant="ghost"
-                icon={<TerminalSquare size={13} />}
-                pressed={verbose}
-                onClick={() => setVerbose((v) => !v)}
-              >
-                {t('boot.verbose')}
-              </Button>
-              <Button size="sm" variant="ghost" icon={<SkipForward size={13} />} onClick={skip}>
-                {t('boot.skip')}
-              </Button>
-            </span>
-          </footer>
-        )}
+      <div className="sh-boot__center">
+        <BrandMark size={72} />
+        <div className="sh-boot__name">SAFETON</div>
+        <div
+          className="sh-boot__bar"
+          role="progressbar"
+          aria-label={t(STAGE_KEY[current])}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+        >
+          <span style={{ width: `${progress * 100}%` }} />
+        </div>
+        <div className="sh-boot__stage">{t(STAGE_KEY[current])}</div>
+        <div className="sh-boot__status mono" aria-live="polite" data-level={activeCheck?.status}>
+          {statusLine}
+        </div>
+        {error && <BootError error={error} t={t} />}
       </div>
+      <ul
+        className="sh-boot__checks"
+        aria-label={t('boot.stage.infrastructure')}
+        hidden={checks.length === 0}
+      >
+        {checks.map((c) => (
+          <li key={c.id} data-status={c.status} title={c.detail}>
+            <span className="sh-boot__check-mark" aria-hidden>
+              {c.status === 'ok' ? (
+                <Check size={11} strokeWidth={3} />
+              ) : c.status === 'warn' ? (
+                <AlertTriangle size={11} />
+              ) : (
+                <Loader2 size={11} className="sh-spin" />
+              )}
+            </span>
+            {c.label}
+          </li>
+        ))}
+      </ul>
+      <footer className="sh-boot__footer">
+        <span className="mono">
+          Safeton {APP_VERSION} · {t('boot.catalog', { version: CATALOG_VERSION })}
+        </span>
+        <span className="sh-boot__keys">
+          <button type="button" onClick={() => setVerbose(true)}>
+            <TerminalSquare size={12} /> <Kbd>V</Kbd> {t('boot.verbose')}
+          </button>
+          <button type="button" onClick={skip}>
+            <SkipForward size={12} /> <Kbd>Esc</Kbd> {t('boot.skip')}
+          </button>
+        </span>
+      </footer>
     </main>
   );
 }
 
-/** Product mark (isometric node), shared with the Engineering Preview header. */
+function BootError({ error, t }: { error: string; t: Translate }) {
+  return (
+    <div className="sh-boot__error" role="alert">
+      <strong>{t('boot.failed')}</strong>
+      <span className="mono">{error}</span>
+      <div className="sh-row">
+        <Button icon={<RotateCcw size={14} />} onClick={() => location.reload()}>
+          {t('common.retry')}
+        </Button>
+        <Button variant="danger" onClick={() => void resetAndReconfigure()}>
+          {t('boot.reset')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Product mark (isometric node), shared with menu bar, setup and developer tools. */
 export function BrandMark({ size = 36 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden className="sh-brandmark">

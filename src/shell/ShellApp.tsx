@@ -11,7 +11,8 @@ import { BootScreen } from './boot/BootScreen';
 import { ConfirmHost } from './ConfirmHost';
 import { LoginScreen } from './login/LoginScreen';
 import { SetupWizard } from './setup/SetupWizard';
-import { Workspace } from './workspace/Workspace';
+import { Desktop } from './desktop/Desktop';
+import { OffScreen, SleepOverlay } from './PowerScreens';
 
 const ACTIVITY_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'] as const;
 
@@ -66,15 +67,19 @@ export function ShellApp() {
       screen = <LoginScreen key="locked" mode="locked" user={user} send={send} />;
       break;
     case 'workspace':
-      screen = <Workspace send={send} />;
+      screen = <Desktop />;
+      break;
+    case 'off':
+      screen = <OffScreen />;
       break;
   }
 
   return (
     <div className="sh-root" data-phase={phase}>
       {screen}
-      {phase !== 'firmware' && phase !== 'kernel' && <ToastViewport />}
+      {phase !== 'firmware' && phase !== 'kernel' && phase !== 'off' && <ToastViewport />}
       <ConfirmHost />
+      <SleepOverlay />
     </div>
   );
 }

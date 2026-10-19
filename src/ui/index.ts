@@ -17,3 +17,4 @@ export { Stepper, type StepperItem } from './components/Stepper';
 export { CardSelect, type CardOption } from './components/CardSelect';
 export { NumberInput } from './components/NumberInput';
 export { PasswordInput } from './components/PasswordInput';
+export { MenuList, PopupMenu, type MenuItem } from './components/Menu';

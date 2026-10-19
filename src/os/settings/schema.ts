@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 
-export const SETTINGS_SCHEMA_VERSION = 2;
+export const SETTINGS_SCHEMA_VERSION = 3;
 
 export const ACCENTS = {
   cyan: { hue: 195, label: 'Cyan' },
@@ -15,6 +15,12 @@ export const ACCENTS = {
   graphite: { hue: 250, label: 'Graphite' },
 } as const;
 export type AccentName = keyof typeof ACCENTS;
+
+export const WALLPAPERS = ['nebula', 'blueprint', 'racks', 'horizon', 'graphite'] as const;
+export type WallpaperName = (typeof WALLPAPERS)[number];
+
+/** Applications pinned to the dock on a fresh system (v3). */
+export const DEFAULT_DOCK = ['monitor', 'cluster', 'workloads', 'facility', 'events', 'settings'];
 
 export const settingsSchema = z.object({
   appearance: z
@@ -83,6 +89,17 @@ export const settingsSchema = z.object({
       animate: z.boolean().default(true),
     })
     .prefault({}),
+  /** v3: desktop environment. */
+  desktop: z
+    .object({
+      wallpaper: z.enum(WALLPAPERS).default('nebula'),
+      dockApps: z.array(z.string().min(1).max(40)).max(24).default(DEFAULT_DOCK),
+      dockMagnify: z.boolean().default(true),
+      showIcons: z.boolean().default(true),
+      showWidget: z.boolean().default(true),
+      clockSeconds: z.boolean().default(false),
+    })
+    .prefault({}),
   system: z
     .object({
       hostname: z.string().min(1).max(63).default('safeton-ops-01'),
@@ -108,6 +125,23 @@ export function migrateSettingsV1toV2(data: unknown): unknown {
     monitoring: { gpuTempWarnC: 85, gpuTempCritC: 90, hallSupplyWarnC: 27, pueWarn: 1.4, ...d.monitoring },
     security: { sessionTimeoutMin: 30, lockScreen: true, confirmCritical: true, ...d.security },
     system: { operatorName: '', ...d.system },
+  };
+}
+
+/** v2 → v3: adds the desktop section (wallpaper, dock, icons, widget, clock). */
+export function migrateSettingsV2toV3(data: unknown): unknown {
+  const d = (data ?? {}) as Record<string, Record<string, unknown> | undefined>;
+  return {
+    ...d,
+    desktop: {
+      wallpaper: 'nebula',
+      dockApps: [...DEFAULT_DOCK],
+      dockMagnify: true,
+      showIcons: true,
+      showWidget: true,
+      clockSeconds: false,
+      ...d.desktop,
+    },
   };
 }
 

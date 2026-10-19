@@ -34,6 +34,18 @@ describe('shell state machine', () => {
     expect(transition(locked, { type: 'LOGOUT' })).toMatchObject({ phase: 'login', user: null });
   });
 
+  it('shuts down from the session phases only', () => {
+    const login = run([
+      { type: 'FIRMWARE_DONE' },
+      { type: 'CORE_READY', setupRequired: false },
+      { type: 'INFRA_READY' },
+    ]);
+    const ws = transition(login, { type: 'AUTHENTICATED', username: 'ada' });
+    expect(transition(ws, { type: 'SHUTDOWN' })).toMatchObject({ phase: 'off', user: null });
+    expect(transition(login, { type: 'SHUTDOWN' }).phase).toBe('off');
+    expect(transition(INITIAL_SHELL, { type: 'SHUTDOWN' })).toBe(INITIAL_SHELL);
+  });
+
   it('rejects transitions that are not defined for the current phase', () => {
     expect(transition(INITIAL_SHELL, { type: 'AUTHENTICATED', username: 'x' })).toBe(INITIAL_SHELL);
     const setup = run([{ type: 'FIRMWARE_DONE' }, { type: 'CORE_READY', setupRequired: true }]);

@@ -3,6 +3,7 @@
  *
  *   firmware → kernel ─┬─ (setup required) → setup → initializing ─┐
  *                      └──────────────────────────────────────────┴→ infrastructure → login ⇄ workspace ⇄ locked
+ *   login | workspace | locked ──SHUTDOWN──▶ off
  *
  * Transitions are a pure function of (phase, event). Unknown transitions are rejected (the
  * phase stays unchanged), so no combination of flags can produce an impossible screen.
@@ -18,6 +19,7 @@ export type ShellPhase =
   | 'login'
   | 'workspace'
   | 'locked'
+  | 'off'
   | 'error';
 
 export type ShellEvent =
@@ -30,6 +32,7 @@ export type ShellEvent =
   | { type: 'LOCK' }
   | { type: 'UNLOCKED' }
   | { type: 'LOGOUT' }
+  | { type: 'SHUTDOWN' }
   | { type: 'FAIL'; error: string }
   | { type: 'RESTART' };
 
@@ -48,6 +51,10 @@ export function transition(state: ShellState, event: ShellEvent): ShellState {
   const { phase } = state;
   if (event.type === 'FAIL') return { ...state, phase: 'error', error: event.error, failedIn: phase };
   if (event.type === 'RESTART') return INITIAL_SHELL;
+  if (event.type === 'SHUTDOWN')
+    return phase === 'login' || phase === 'workspace' || phase === 'locked'
+      ? { ...state, phase: 'off', user: null }
+      : state;
   switch (phase) {
     case 'firmware':
       if (event.type === 'FIRMWARE_DONE') return { ...state, phase: 'kernel' };
@@ -76,6 +83,7 @@ export function transition(state: ShellState, event: ShellEvent): ShellState {
       if (event.type === 'UNLOCKED') return { ...state, phase: 'workspace' };
       if (event.type === 'LOGOUT') return { ...state, phase: 'login', user: null };
       break;
+    case 'off':
     case 'error':
       break;
   }

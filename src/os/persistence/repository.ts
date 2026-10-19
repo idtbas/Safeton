@@ -15,6 +15,7 @@ import {
   SETTINGS_SCHEMA_VERSION,
   defaultSettings,
   migrateSettingsV1toV2,
+  migrateSettingsV2toV3,
   settingsSchema,
   type Settings,
 } from '../settings/schema';
@@ -45,7 +46,7 @@ type Migration = (data: unknown) => unknown;
  * Version 1 is the first released schema; future schema changes add entries here.
  */
 export const MIGRATIONS: Record<DocKey, Record<number, Migration>> = {
-  settings: { 1: migrateSettingsV1toV2 },
+  settings: { 1: migrateSettingsV1toV2, 2: migrateSettingsV2toV3 },
   infra: {},
   'sim-state': {},
   meta: {},
