@@ -2,14 +2,35 @@
 <html lang="de" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
     <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#07090c" />
     <meta
       name="description"
       content="Safeton — operating system for simulating and operating AI data center infrastructure (simulation; no real hardware is controlled)."
     />
+    <meta name="application-name" content="Safeton" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Safeton" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <title>Safeton · Engineering Preview</title>
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <title>Safeton</title>
+    <style>
+      /* Pre-paint background so no white flash appears before the app loads. */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

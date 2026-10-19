@@ -142,6 +142,7 @@ export const exportBundleSchema = z.object({
   exportedAt: z.string(),
   app: z.object({ version: z.string() }).loose(),
   settings: z.unknown().optional(),
+  account: z.unknown().optional(),
   infra: z.unknown().optional(),
   simState: z.unknown().optional(),
 });

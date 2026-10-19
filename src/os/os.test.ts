@@ -4,7 +4,7 @@ import { Simulation, buildTemplate } from '../engine';
 import { decodeJson, encodeJson } from './persistence/codec';
 import { MIGRATIONS, Repository, migrate } from './persistence/repository';
 import { MemoryDocumentStore, openDocumentStore } from './persistence/store';
-import { defaultSettings, mergeSettings, settingsSchema } from './settings/schema';
+import { SETTINGS_SCHEMA_VERSION, defaultSettings, mergeSettings, settingsSchema } from './settings/schema';
 import { clampBounds, useWindowStore } from './windows/store';
 import { useNotificationStore } from './notifications/store';
 
@@ -174,5 +174,54 @@ describe('notifications', () => {
     expect(s.toasts.length).toBe(2);
     s.markAllRead();
     expect(useNotificationStore.getState().items.every((i) => i.read)).toBe(true);
+  });
+});
+
+describe('settings migration v1 → v2', () => {
+  it('upgrades a stored v1 document, keeping existing values', async () => {
+    const store = new MemoryDocumentStore();
+    const v1 = {
+      appearance: { theme: 'light', accent: 'violet' },
+      region: { locale: 'en-GB' },
+      simulation: { seed: 7, timeScale: 60 },
+      system: { hostname: 'legacy-01', operator: 'ops', setupComplete: true },
+    };
+    await store.put('settings', 1, v1);
+    const { value, issues } = await new Repository(store).loadSettings();
+    expect(issues).toEqual([]);
+    expect(value!.appearance).toMatchObject({ theme: 'light', accent: 'violet' });
+    expect(value!.simulation).toMatchObject({
+      seed: 7,
+      timeScale: 60,
+      telemetryIntervalS: 5,
+      startMode: 'warm',
+    });
+    expect(value!.monitoring).toEqual({
+      gpuTempWarnC: 85,
+      gpuTempCritC: 90,
+      hallSupplyWarnC: 27,
+      pueWarn: 1.4,
+    });
+    expect(value!.security).toEqual({ sessionTimeoutMin: 30, lockScreen: true, confirmCritical: true });
+    expect(value!.system).toMatchObject({ hostname: 'legacy-01', setupComplete: true, operatorName: '' });
+  });
+
+  it('upgrades v2 → v3 with the desktop defaults', async () => {
+    const store = new MemoryDocumentStore();
+    await store.put('settings', 2, { appearance: { theme: 'light' }, system: { setupComplete: true } });
+    const { value } = await new Repository(store).loadSettings();
+    expect(value!.appearance.theme).toBe('light');
+    expect(value!.desktop).toMatchObject({ wallpaper: 'nebula', showIcons: true, dockMagnify: true });
+    expect(value!.desktop.dockApps).toContain('settings');
+  });
+
+  it('registers a migration for every settings version below the current one', () => {
+    for (let v = 1; v < SETTINGS_SCHEMA_VERSION; v++) expect(MIGRATIONS.settings[v]).toBeTypeOf('function');
+  });
+
+  it('writes settings with the current schema version', async () => {
+    const store = new MemoryDocumentStore();
+    await new Repository(store).saveSettings(defaultSettings());
+    expect((await store.get('settings'))!.schemaVersion).toBe(SETTINGS_SCHEMA_VERSION);
   });
 });

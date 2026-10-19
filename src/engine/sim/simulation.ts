@@ -121,6 +121,8 @@ export interface SimulationOptions {
   autoRemediation?: boolean;
   /** Initial node power state. */
   initialPower?: 'online' | 'offline';
+  /** Global telemetry sampling interval in simulated seconds (default 5). */
+  seriesIntervalS?: number;
 }
 
 export interface HallRuntime {
@@ -169,6 +171,7 @@ export interface SimStateBlob {
   fingerprint: string;
   seed: number;
   dt: number;
+  seriesIntervalS?: number;
   tick: number;
   time: number;
   rng: [number, number, number, number];
@@ -195,6 +198,7 @@ export class Simulation {
   readonly topo: Topology;
   readonly seed: number;
   readonly dt: number;
+  readonly seriesIntervalS: number;
   readonly rng: Rng;
   readonly rt: RuntimeArrays;
   readonly plantParams: FacilityPlantParams;
@@ -248,6 +252,7 @@ export class Simulation {
     this.topo = 'nodes' in specOrTopo ? specOrTopo : expandTopology(specOrTopo);
     this.seed = opts.seed >>> 0;
     this.dt = opts.dt ?? 1;
+    this.seriesIntervalS = Math.max(this.dt, Math.round(opts.seriesIntervalS ?? SERIES_INTERVAL_S));
     this.rng = new Rng(this.seed);
     this.failureRateMultiplier = opts.failureRateMultiplier ?? 1;
     this.autoRemediation = opts.autoRemediation ?? true;
@@ -461,6 +466,7 @@ export class Simulation {
       fingerprint: this.topo.fingerprint,
       seed: this.seed,
       dt: this.dt,
+      seriesIntervalS: this.seriesIntervalS,
       tick: this.tick,
       time: this.time,
       rng: this.rng.getState(),
@@ -488,6 +494,7 @@ export class Simulation {
     const sim = new Simulation(blob.spec, {
       seed: blob.seed,
       dt: blob.dt,
+      seriesIntervalS: blob.seriesIntervalS,
       failureRateMultiplier: blob.failureRateMultiplier,
       autoRemediation: blob.autoRemediation,
     });
@@ -1101,7 +1108,7 @@ export class Simulation {
 
   private sampleTelemetry(): void {
     const t = this.tick * this.dt;
-    if (Math.floor(t / SERIES_INTERVAL_S) !== Math.floor((t - this.dt) / SERIES_INTERVAL_S)) {
+    if (Math.floor(t / this.seriesIntervalS) !== Math.floor((t - this.dt) / this.seriesIntervalS)) {
       const values = this.currentSeriesValues();
       this.seriesTime.push(this.time);
       for (const k of SERIES_KEYS) this.series[k].push(values[k]);

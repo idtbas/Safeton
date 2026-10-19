@@ -9,19 +9,23 @@ import {
   Badge,
   Button,
   ButtonGroup,
+  CardSelect,
   Dialog,
   Input,
   Kbd,
   KeyValue,
   Meter,
   MetricTile,
+  NumberInput,
   Panel,
+  PasswordInput,
   Progress,
   Segments,
   Select,
   Slider,
   Sparkline,
   StatusBadge,
+  Stepper,
   Table,
   Tabs,
   Toggle,
@@ -46,6 +50,10 @@ export function Gallery() {
   const [toggle, setToggle] = useState(true);
   const [slider, setSlider] = useState(700);
   const [sel, setSel] = useState('h100');
+  const [step, setStep] = useState(2);
+  const [cooling, setCooling] = useState<'air' | 'rdhx' | 'dlc'>('rdhx');
+  const [racks, setRacks] = useState(8);
+  const [pw, setPw] = useState('Correct-Horse-42');
   const rows = useMemo(
     () =>
       Array.from({ length: 10_000 }, (_, i) => ({
@@ -211,6 +219,64 @@ export function Gallery() {
                   { value: 'h200', label: 'H200 SXM5 141GB' },
                   { value: 'b200', label: 'B200 SXM6 180GB' },
                 ]}
+              />
+            </div>
+          </Panel>
+          <Panel title="Stepper">
+            <Stepper
+              current={step}
+              completed={[0, 1, 2, 3].filter((i) => i < step)}
+              reachable={step}
+              onSelect={setStep}
+              items={['Administrator', 'System & site', 'Hardware', 'Network', 'Review'].map((title, i) => ({
+                id: String(i),
+                title,
+                description: i === step ? 'Current step' : undefined,
+              }))}
+            />
+            <div className="pv-stack" style={{ marginTop: 8 }}>
+              <ButtonGroup label="Stepper navigation">
+                <Button size="sm" onClick={() => setStep((s) => Math.max(0, s - 1))}>
+                  Back
+                </Button>
+                <Button size="sm" onClick={() => setStep((s) => Math.min(4, s + 1))}>
+                  Next
+                </Button>
+              </ButtonGroup>
+            </div>
+          </Panel>
+          <Panel title="Card select, number & password">
+            <div className="pv-stack">
+              <CardSelect
+                label="Rack cooling"
+                value={cooling}
+                size="sm"
+                columns={150}
+                onChange={setCooling}
+                options={[
+                  { value: 'air', title: 'Room air', description: 'Up to ~25 kW per rack' },
+                  { value: 'rdhx', title: 'Rear door', description: 'Up to 75 kW per rack' },
+                  { value: 'dlc', title: 'Liquid', description: 'Not supported', disabled: true },
+                ]}
+              />
+              <NumberInput label="Compute racks" value={racks} min={1} max={4096} onChange={setRacks} />
+              <NumberInput
+                label="Supply air"
+                value={24}
+                min={18}
+                max={27}
+                step={0.5}
+                unit="°C"
+                onChange={() => undefined}
+              />
+              <PasswordInput
+                label="Password"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                strength={{
+                  score: pw.length >= 16 ? 4 : pw.length >= 12 ? 3 : 1,
+                  label: pw.length >= 12 ? 'Good' : 'Weak',
+                }}
               />
             </div>
           </Panel>
