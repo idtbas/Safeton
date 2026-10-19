@@ -31,6 +31,8 @@ import { t } from './i18n';
 import { SETTINGS_SCHEMA_VERSION, defaultSettings, type Settings } from './settings/schema';
 import {
   buildSetupSpec,
+  detectLocale,
+  detectTimeZone,
   toSettings,
   validateSetupInfra,
   type SetupData,
@@ -68,7 +70,7 @@ const humanize = (code: string) =>
     .toLowerCase()
     .split('_')
     .map((w) =>
-      w === 'gpu' || w === 'nic' || w === 'psu' || w === 'xid' || w === 'cdu' || w === 'crah'
+      w === 'gpu' || w === 'post' || w === 'nic' || w === 'psu' || w === 'xid' || w === 'cdu' || w === 'crah'
         ? w.toUpperCase()
         : w,
     )
@@ -187,7 +189,11 @@ export interface CoreInfo {
   account: Account | null;
 }
 
+/** How the infrastructure phase brought the cluster up. */
+export type InfraStartKind = 'restored' | 'warm' | 'cold';
+
 let corePromise: Promise<CoreInfo> | null = null;
+let infraStartKind: InfraStartKind | null = null;
 let infraPromise: Promise<InitResult> | null = null;
 let account: Account | null = null;
 
@@ -233,7 +239,20 @@ async function runCore(): Promise<CoreInfo> {
         const res = await repo.loadSettings();
         for (const issue of res.issues)
           notify({ severity: 'warning', title: 'Configuration recovered', body: issue, source: 'kernel' });
-        return res.value ?? defaultSettings();
+        if (res.value) return res.value;
+        // First run: start in the browser's language until the setup assistant decides.
+        const fresh = defaultSettings();
+        const locale = detectLocale();
+        return {
+          ...fresh,
+          region: {
+            ...fresh.region,
+            locale,
+            timeZone: detectTimeZone(),
+            hourCycle: locale === 'en-US' ? ('h12' as const) : ('h23' as const),
+            temperatureUnit: locale === 'en-US' ? ('F' as const) : ('C' as const),
+          },
+        };
       },
       (s) => `${s.system.hostname} · ${s.region.locale} · schema v${SETTINGS_SCHEMA_VERSION}`,
     );
@@ -261,8 +280,11 @@ async function runCore(): Promise<CoreInfo> {
     useEngineStore.setState({ mode: client.mode });
     attachSettingsPersistence();
 
+    const setupRequired = !settings.system.setupComplete || !account;
+    // A draft left behind by an interrupted handover is obsolete once setup is committed.
+    if (!setupRequired) await repo.clearSetupDraft();
     return {
-      setupRequired: !settings.system.setupComplete || !account,
+      setupRequired,
       storageKind: store.kind,
       engineMode: client.mode,
       catalogItems,
@@ -321,7 +343,9 @@ async function runInfra(): Promise<InitResult> {
           notify({ severity: 'warning', title: 'Simulation state recovered', body: issue, source: 'kernel' });
         if (saved.value) {
           try {
-            return await client.restore(saved.value, control);
+            const restored = await client.restore(saved.value, control);
+            infraStartKind = 'restored';
+            return restored;
           } catch (err) {
             await repo.store.quarantine('sim-state', null, (err as Error).message);
             notify({
@@ -345,6 +369,7 @@ async function runInfra(): Promise<InitResult> {
         const power = settings.simulation.startMode === 'cold' ? 'offline' : 'online';
         const result = await client.init(spec, engineOptions(settings, power), control);
         if (power === 'offline') await client.command({ type: 'node.powerOn', nodes: 'all' });
+        infraStartKind = power === 'offline' ? 'cold' : 'warm';
         return result;
       },
       (r) => `${r.topology.spec.name}: ${r.topology.nodes.length} nodes, ${r.topology.gpuCount} GPUs`,
@@ -429,6 +454,11 @@ export function currentAccount(): Account | null {
   return account;
 }
 
+/** Restored from saved state, warm start, or cold start (null before the infrastructure phase). */
+export function infrastructureStartKind(): InfraStartKind | null {
+  return infraStartKind;
+}
+
 export async function loadSetupDraft(): Promise<SetupDraft | null> {
   const res = await requireKernel().repo.loadSetupDraft();
   return res.value;
@@ -438,11 +468,13 @@ export function saveSetupDraft(draft: SetupDraft): Promise<void> {
   return requireKernel().repo.saveSetupDraft(draft);
 }
 
-export type SetupTask = 'settings' | 'account' | 'infra' | 'engine' | 'handover';
+export const SETUP_TASKS = ['account', 'infra', 'settings', 'engine', 'handover'] as const;
+export type SetupTask = (typeof SETUP_TASKS)[number];
 
 /**
- * Commits a completed setup: settings, administrator account and infrastructure specification
- * are persisted, the draft is discarded and the infrastructure phase of the boot starts.
+ * Commits a completed setup: administrator account, infrastructure specification and finally
+ * the settings (whose `setupComplete` flag is the commit marker — an interrupted commit leaves
+ * the system in setup mode with the draft intact), then the infrastructure phase starts.
  */
 export async function completeSetup(
   data: SetupData,
@@ -461,10 +493,6 @@ export async function completeSetup(
   if (!data.admin.credential) throw new Error('Administrator credential missing');
 
   const settings = toSettings(data, useSettingsStore.getState().settings);
-  await step('settings', async () => {
-    await repo.saveSettings(settings);
-    useSettingsStore.getState().replace(settings);
-  });
   await step('account', async () => {
     account = accountSchema.parse({
       username: data.admin.username,
@@ -479,11 +507,36 @@ export async function completeSetup(
     await repo.store.delete('sim-state');
     await repo.saveInfra(buildSetupSpec(data));
   });
-  const init = await step('engine', () => startInfrastructure());
+  await step('settings', async () => {
+    await repo.saveSettings(settings);
+    useSettingsStore.getState().replace(settings);
+  });
+  const init = await step('engine', () => commissionInfrastructure());
   await step('handover', async () => {
     await repo.clearSetupDraft();
     await saveNow();
   });
+  return init;
+}
+
+/**
+ * Starts the infrastructure phase with the committed specification. If the engine already runs
+ * another infrastructure (e.g. the Engineering Preview booted first), it is re-initialised.
+ */
+async function commissionInfrastructure(): Promise<InitResult> {
+  if (!infraPromise) return startInfrastructure();
+  await infraPromise.catch(() => undefined);
+  const { repo, client } = requireKernel();
+  const settings = useSettingsStore.getState().settings;
+  const spec = (await repo.loadInfra()).value;
+  if (!spec) throw new Error('Committed infrastructure specification missing');
+  const power = settings.simulation.startMode === 'cold' ? 'offline' : 'online';
+  const init = await client.init(spec, engineOptions(settings, power), controlFromSettings(settings));
+  if (power === 'offline') await client.command({ type: 'node.powerOn', nodes: 'all' });
+  infraStartKind = power === 'offline' ? 'cold' : 'warm';
+  useEngineStore.setState({ topology: init.topology, events: [], series: { time: [] }, status: 'ready' });
+  await seedSeries();
+  infraPromise = Promise.resolve(init);
   return init;
 }
 
@@ -587,14 +640,12 @@ function updateAlert(
     store.set(id, { ...active, body: body() });
   } else if (active && !level && cleared) {
     store.set(id, null);
-    useNotificationStore
-      .getState()
-      .push({
-        severity: 'notice',
-        title: t('alert.cleared', { title: active.title }),
-        body: body(),
-        source: 'monitor',
-      });
+    useNotificationStore.getState().push({
+      severity: 'notice',
+      title: t('alert.cleared', { title: active.title }),
+      body: body(),
+      source: 'monitor',
+    });
   }
 }
 

@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { part, tryPart } from '../../catalog';
 import {
+  CLIMATE_PRESETS,
   TEMPLATES,
   designInfrastructure,
   validateInfra,
@@ -135,14 +136,14 @@ export const setupDraftSchema = z.object({
 
 // ---- Defaults ----------------------------------------------------------------------------
 
-function detectLocale(): Settings['region']['locale'] {
+export function detectLocale(): Settings['region']['locale'] {
   const lang = typeof navigator !== 'undefined' ? navigator.language : 'de-DE';
   if (lang.startsWith('de')) return 'de-DE';
   if (lang === 'en-GB') return 'en-GB';
   return lang.startsWith('en') ? 'en-US' : 'de-DE';
 }
 
-function detectTimeZone(): string {
+export function detectTimeZone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin';
   } catch {
@@ -479,7 +480,12 @@ export function setupReducer(state: SetupState, action: SetupAction): SetupState
       const t = TEMPLATES.find((x) => x.id === action.templateId);
       const data: SetupData = {
         ...draft.data,
-        infra: { ...draft.data.infra, templateId: action.templateId, design },
+        infra: {
+          ...draft.data.infra,
+          templateId: action.templateId,
+          design,
+          climateId: CLIMATE_PRESETS.find((c) => c.city === design.site.city)?.id ?? 'custom',
+        },
         system: { ...draft.data.system, infraName: t?.name ?? draft.data.system.infraName },
       };
       // Changing the profile invalidates the detail steps that depend on it.

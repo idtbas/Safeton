@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { bootKernel, type BootStep } from '../os/kernel';
 import { useEngineStore } from '../os/engine/store';
 import { useSettingsStore } from '../os/settings/store';
+import { ConfirmHost } from '../shell/ConfirmHost';
 import { ToastViewport, fmt } from '../ui';
 import { EngineeringPreview } from './EngineeringPreview';
 import { Gallery } from './Gallery';
@@ -45,6 +46,7 @@ export function App() {
         <BootStatus steps={steps} error={status === 'error' ? error : null} />
       )}
       <ToastViewport />
+      <ConfirmHost />
     </div>
   );
 }

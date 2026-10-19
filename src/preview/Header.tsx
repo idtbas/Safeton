@@ -33,6 +33,7 @@ export function Header({ route }: { route: string }) {
         <span className="pv-brand__tag">Engineering Preview</span>
       </div>
       <nav className="pv-nav" aria-label="Preview sections">
+        <a href="#/">Console</a>
         <a href="#/preview" aria-current={!route.startsWith('#/components') ? 'page' : undefined}>
           Simulation
         </a>

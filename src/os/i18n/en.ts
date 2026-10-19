@@ -180,7 +180,7 @@ export const en = {
   'setup.profile.nodes': 'Nodes',
   'setup.profile.itPeak': 'IT peak',
   'setup.profile.bf16': 'BF16 dense',
-  'setup.profile.pue': 'PUE (annual)',
+  'setup.profile.pue': 'PUE',
   'setup.profile.capex': 'CapEx (est.)',
 
   // Hardware
@@ -367,6 +367,7 @@ export const en = {
   'ws.clear': 'Clear',
   'ws.welcome': 'Welcome, {name}',
   'ws.lead': '{infra} at {site} is under your control.',
+  'ws.placeholderTitle': 'Desktop',
   'ws.placeholder': 'The desktop with window management and applications arrives in the next release stage.',
   'ws.openPreview': 'Engineering Preview',
   'ws.openComponents': 'Design system',
@@ -381,6 +382,15 @@ export const en = {
   'ws.metric.pue': 'PUE',
   'ws.metric.temp': 'Max GPU temperature',
   'ws.metric.jobs': 'Active jobs',
+  'ws.infra': 'Infrastructure',
+  'ws.infra.site': 'Site',
+  'ws.infra.layout': 'Layout',
+  'ws.infra.layoutValue': '{halls} hall(s) · {racks} racks · {nodes} nodes · {gpus} GPUs',
+  'ws.infra.fabric': 'Backend fabric',
+  'ws.infra.storage': 'Storage',
+  'ws.infra.plant': 'Cooling plant',
+  'ws.infra.chillers': '{healthy}/{installed} chillers',
+  'ws.infra.energy': 'Energy since start',
   'ws.alerts': 'Active alerts',
   'ws.noAlerts': 'All monitored values within thresholds.',
   'ws.simTime': 'Simulation time',
@@ -397,7 +407,19 @@ export const en = {
 
   // Confirmation
   'confirm.title': 'Confirm critical action',
-  'confirm.body': 'Execute “{action}”? This affects running infrastructure.',
+  'confirm.body': '“{action}” — {target}. This affects running infrastructure and workloads.',
+  'confirm.target.all': 'all nodes',
+  'confirm.target.nodes': '{n} node(s)',
+  'confirm.target.rack': 'all nodes in rack {id}',
+  'confirm.target.hall': 'all nodes in hall {id}',
+  'confirm.target.switches': '{n} switch(es)',
+  'confirm.target.job': 'job #{id}',
+  'cmd.node.powerOff': 'Power off',
+  'cmd.node.reboot': 'Reboot',
+  'cmd.node.maintenance': 'Enter maintenance',
+  'cmd.fault.inject': 'Inject fault',
+  'cmd.job.cancel': 'Cancel job',
+  'cmd.switch.down': 'Disable switch',
 } as const;
 
 export type MessageKey = keyof typeof en;
