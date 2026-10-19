@@ -9,12 +9,14 @@ Verbindung zu realer Hardware.
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ src/apps/        Anwendungen (ab Etappe 3) — registrieren nur ein Manifest   │
-│ src/preview/     Etappe 1: Engineering Preview + Komponentengalerie          │
+│ src/shell/       OS-Oberfläche: Boot, Ersteinrichtung, Anmeldung, Workspace  │
+│ src/preview/     Interne Werkzeuge: Engineering Preview + Komponentengalerie │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ src/ui/          Designsystem: Tokens, Basiskomponenten, Formatierung        │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ src/os/          OS-Kern: Kernel, Persistenz, Einstellungen, Fenster,        │
-│                  Benachrichtigungen, Engine-Store, App-Registry               │
+│                  Benachrichtigungen, Engine-Store, App-Registry, Shell-       │
+│                  Zustandsmaschine, Setup-Modell, Konten, i18n, Bestätigungen │
 ├───────────────────────────── Nachrichtenprotokoll ───────────────────────────┤
 │ src/engine/      Simulationsengine (läuft im Web Worker)                      │
 │   model/         InfraSpec → Topologie, Validierung, abgeleitete Kennzahlen  │
@@ -92,17 +94,138 @@ Lesende Abfragen (`Query`): `topology`, `node.detail`, `job.detail`, `jobs`, `se
 ## Persistenz
 
 - IndexedDB-Datenbank `safeton` (Version 1) mit Store `docs` (Dokumente `settings`,
-  `infra`, `sim-state`, `meta`) und `quarantine`.
+  `infra`, `sim-state`, `meta`, `account`, `setup`) und `quarantine`.
 - Jedes Dokument ist ein Umschlag `{ key, schemaVersion, savedAt, data }`. Beim Laden
   werden registrierte Migrationen (`MIGRATIONS[key][v]`: v → v+1) angewandt und mit Zod
   validiert. Ungültige oder zu neue Dokumente wandern in die Quarantäne; das System startet
   mit Standardwerten und meldet das als Benachrichtigung.
 - Ohne IndexedDB (privater Modus, blockierter Speicher) arbeitet ein flüchtiger
   Speicher-Store; die Oberfläche zeigt „Volatile“.
-- Export/Import: JSON-Bündel `safeton-export` v1 mit Einstellungen, Infrastruktur und
+- Export/Import: JSON-Bündel `safeton-export` v1 mit Einstellungen (inkl. Schemaversion,
+  ältere Stände werden beim Import migriert), Administratorkonto, Infrastruktur und
   Simulationszustand; Typed Arrays werden Base64-kodiert. Importierte Infrastruktur wird
   vor dem Laden vollständig validiert.
 - Autosave im Intervall aus den Einstellungen sowie bei `visibilitychange`/`pagehide`.
+- Einstellungen tragen Schemaversion **2**. Die Migration `migrateSettingsV1toV2`
+  (registriert als `MIGRATIONS.settings[1]`) ergänzt Monitoring-Schwellwerte,
+  Sicherheitsoptionen, Telemetrieintervall, Startmodus und Anzeigenamen und behält alle
+  vorhandenen Werte.
+
+## Shell-Ablauf
+
+Die Oberfläche ist eine reine Zustandsmaschine (`src/os/shell/machine.ts`,
+`transition(state, event)`); `src/shell/ShellApp.tsx` rendert nur den Bildschirm zur Phase.
+Nicht definierte Übergänge werden verworfen, unmögliche Kombinationen (z. B. Workspace ohne
+Anmeldung) sind damit ausgeschlossen.
+
+```
+firmware ──FIRMWARE_DONE──▶ kernel ──CORE_READY{setupRequired}──┬──▶ setup ──SETUP_SUBMITTED──▶ initializing
+                                                                │                                   │ INITIALIZED
+                                                                └──────────────▶ infrastructure ◀───┘
+                                                                                     │ INFRA_READY
+                                       LOGOUT ┌──────────────────────────────▶ login ◀───────┐
+                                              │                                │ AUTHENTICATED │ LOGOUT
+                                         locked ◀──LOCK── workspace ◀──────────┘               │
+                                              └──UNLOCKED──▶ workspace ────────────────────────┘
+FAIL (jede Phase) ──▶ error            RESTART ──▶ firmware
+```
+
+Der Kernel bootet in zwei Phasen, damit die Ersteinrichtung dazwischen liegen kann:
+
+| Phase                        | Kernel-Funktion         | Schritte                                                                  |
+| ---------------------------- | ----------------------- | ------------------------------------------------------------------------- |
+| Kern                         | `bootCore()`            | Speicher, Konfiguration, Katalog, Administratorverzeichnis, Engine-Worker |
+| Infrastruktur                | `startInfrastructure()` | Zustand wiederherstellen oder Spezifikation initialisieren, Telemetrie    |
+| Beides (Engineering Preview) | `bootKernel()`          | Kern + Infrastruktur                                                      |
+
+`setupRequired` ist wahr, solange `settings.system.setupComplete` fehlt oder kein
+Administratorkonto existiert. `resetAndReconfigure()` löscht alle Dokumente und startet neu
+in die Ersteinrichtung.
+
+**Boot-Animation** (`src/shell/boot/BootScreen.tsx`): Jede Zeile beruht auf echten Daten —
+Browser-Host (Kerne, Speicher, Anzeige, Speicherkontingent, Web Crypto, Worker), gemessene
+Kernel-Schritte, Katalogversion, Speicher-Backend, Worker-Modus, die expandierte Topologie
+(Hallen, Racks, Nodes, GPUs, Switches, Links, Fabric-Ebenen) und der erste Engine-Snapshot
+(IT-Last, USV-Auslastung, Zuluft, Kältemaschinen). Die Taktung verteilt die Darstellung auf
+≈ 6–10 s; `Esc` überspringt, `V` schaltet das ausführliche Textprotokoll um. Reduzierte
+Bewegung (System oder Einstellung) schaltet Animationen ab.
+
+**Start-Semantik:** `startMode = 'warm'` startet Nodes eingeschaltet. `'cold'` wirkt bei der
+Inbetriebnahme ohne gespeicherten Zustand: Die Engine startet mit `initialPower: 'offline'`,
+der Kernel schaltet alle Nodes ein, und der Boot wartet (Simulationszeit beschleunigt auf
+60×), bis `bootMinCapacity` der Nodes POST und OS-Boot durchlaufen hat (Zeitlimit 60 s
+Echtzeit, überspringbar). Spätere Starts hängen sich an den persistierten, laufenden Cluster
+an (`infrastructureStartKind() === 'restored'`) — wie ein Management-Server, der neu startet,
+während das Rechenzentrum weiterläuft.
+
+## Ersteinrichtung
+
+`src/os/setup/model.ts` enthält Datenmodell, Validierung und einen reinen Reducer; die
+Oberfläche (`src/shell/setup/`) ist dünn.
+
+| #   | Schritt              | Daten (`SetupData`)                | Wirkt auf                                                         |
+| --- | -------------------- | ---------------------------------- | ----------------------------------------------------------------- |
+| 1   | Willkommen           | —                                  | —                                                                 |
+| 2   | Sprache & Region     | `region`                           | `settings.region`, i18n, Formatierung                             |
+| 3   | Administrator        | `admin` (Credential, nie Klartext) | Dokument `account`, `settings.system.operator/operatorName`       |
+| 4   | System & Standort    | `system`                           | `settings.system.hostname`, Spezifikation (Name, Standort, Code)  |
+| 5   | Erscheinungsbild     | `appearance` (Live-Vorschau)       | `settings.appearance`                                             |
+| 6   | Infrastrukturprofil  | `infra.templateId`                 | setzt `infra.design` aus der Vorlage                              |
+| 7   | Hardware             | `infra.design.compute/halls/…`     | `designInfrastructure` → Spezifikation                            |
+| 8   | Netzwerk             | `infra.design.fabric`, Compute-NIC | Spezifikation                                                     |
+| 9   | Standort & Anlage    | Klima, Energiepreis, Sollwerte     | Spezifikation (Anlage wird N+1 automatisch dimensioniert)         |
+| 10  | Monitoring           | `monitoring`                       | `settings.simulation.snapshotHz/telemetryIntervalS`, `monitoring` |
+| 11  | Sicherheit & Betrieb | `operations`                       | `settings.security`, `settings.simulation`                        |
+| 12  | Überprüfung          | —                                  | blockiert bei `validateInfra`-Fehlern, Rücksprung zum Schritt     |
+| 13  | Initialisierung      | —                                  | `completeSetup()`                                                 |
+
+- **Entwurf:** `SetupDraft { version, current, completed[], data }` wird nach jeder Änderung
+  (300 ms entprellt) und bei `pagehide` als Dokument `setup` gespeichert. Nach einem Reload
+  geht es am selben Schritt weiter; eine unterbrochene Initialisierung kehrt zur Überprüfung
+  zurück.
+- **Validierung:** `validateStep` liefert Feld → i18n-Schlüssel. Schritte 7–9 validieren
+  Feldbereiche sofort und die Engineering-Prüfung (`validateSetupInfra`, memoisiert)
+  entprellt (250 ms) im Live-Panel. `stepForIssue` ordnet jede Validierungsmeldung dem
+  zuständigen Schritt zu.
+- **Navigation:** `setupReducer` (`next`/`back`/`goto`/`update`/`selectTemplate`). `next`
+  validiert den aktuellen Schritt; `goto` erlaubt nur erreichbare Schritte; ein Profilwechsel
+  setzt die abhängigen Schritte 7–9 und die Überprüfung zurück.
+- **Commit:** `completeSetup` schreibt Konto und Spezifikation, danach die Einstellungen —
+  `setupComplete` ist die Commit-Markierung, ein Abbruch davor lässt das System im
+  Setup-Modus mit intaktem Entwurf. Anschließend startet die Infrastrukturphase.
+
+## Konten und Anmeldung
+
+- Ein lokales Administratorkonto (`src/os/auth/credentials.ts`): PBKDF2-HMAC-SHA-256 über
+  Web Crypto, 600 000 Iterationen, 128-Bit-Salt, konstante Vergleichszeit. Das Passwort
+  verlässt den Browser nie und wird nie im Klartext gespeichert.
+- Richtlinie: ≥ 12 Zeichen, ≥ 3 Zeichenklassen, enthält nicht den Benutzernamen, keine
+  gängigen Passwörter.
+- Fehlversuche: ab dem dritten in Folge Sperre 1 s, 2 s, 4 s … (max. 30 s).
+- Sitzungen werden nicht persistiert: Ein Neuladen entspricht einem Neustart der Konsole und
+  verlangt erneute Anmeldung. Inaktivität sperrt den Bildschirm (oder meldet ab) nach
+  `security.sessionTimeoutMin`.
+- Dies schützt nur die simulierte Konsole vor beiläufigem Zugriff; es ist kein
+  Sicherheitsmechanismus für reale Infrastruktur.
+
+## Internationalisierung
+
+- `src/os/i18n/en.ts` ist das Quellwörterbuch (`as const`, liefert den Typ `MessageKey`),
+  `de.ts` ist als `Record<MessageKey, string>` typisiert — fehlende Übersetzungen sind
+  Compilerfehler. Ein Test prüft zusätzlich gleiche Schlüssel und Platzhalter.
+- `useT()` (React) bzw. `t()` (Kernel) übersetzen mit `{name}`-Interpolation; die Sprache folgt
+  `settings.region.locale`. Der Setup-Assistent nutzt `useT(draft.locale)` für eine
+  Live-Umschaltung.
+- Engine-Ereignistexte bleiben englisch, wie in realen Infrastruktur-Logs.
+
+## Überwachung und Bestätigungen
+
+- Der Kernel wertet jeden Snapshot gegen `settings.monitoring` aus (max. GPU-Temperatur
+  Warnung/kritisch, Hallen-Zuluft, PUE ab 30 % Auslegungslast). Alarme sind flankengesteuert
+  mit Hysterese (`useAlertStore`) und erzeugen Benachrichtigungen bei Eintritt und Ende.
+- `src/os/confirm.ts`: `requestConfirm()` / `confirmCommand(cmd)`. Kritische Befehle
+  (Ausschalten, Neustart, Wartung, Fehlerinjektion, Job-Abbruch, Switch deaktivieren) werden
+  bestätigt, wenn `security.confirmCritical` aktiv ist. `ConfirmHost` rendert die Anfrage.
 
 ## Erweiterung
 
@@ -122,13 +245,17 @@ Lesende Abfragen (`Query`): `topology`, `node.detail`, `job.detail`, `jobs`, `se
 
 ## Entscheidungen
 
-| Thema                      | Entscheidung                                                           | Begründung                                                                                                   |
-| -------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Build                      | Vite 8, React 19, TypeScript 6 (strict)                                | Schneller Build, Worker-Bundling eingebaut; TS 6 statt 7, weil typescript-eslint TS 7 noch nicht unterstützt |
-| Zustand                    | Zustand 5                                                              | Minimal, selektive Abonnements, außerhalb von React nutzbar (Kernel)                                         |
-| Engine-Laufzeit            | Web Worker, In-Process-Fallback                                        | UI bleibt auch bei 32 768 GPUs flüssig                                                                       |
-| Laufzeitdaten              | Struct-of-Arrays in Typed Arrays                                       | Cache-freundlich, billig zu serialisieren und zu transferieren                                               |
-| Validierung externer Daten | Zod 4                                                                  | Persistierte und importierte Daten sind nicht vertrauenswürdig                                               |
-| Persistenz                 | IndexedDB über `idb`                                                   | Große Binärzustände (Typed Arrays) ohne Serialisierungsaufwand                                               |
-| Icons / Schriften          | lucide-react, Inter + JetBrains Mono (selbst gehostet über Fontsource) | Keine externen Laufzeitabhängigkeiten, offline lauffähig                                                     |
-| Routing (Etappe 1)         | Hash-basiert                                                           | Funktioniert auf GitHub Pages ohne Server-Rewrites                                                           |
+| Thema                      | Entscheidung                                                             | Begründung                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Build                      | Vite 8, React 19, TypeScript 6 (strict)                                  | Schneller Build, Worker-Bundling eingebaut; TS 6 statt 7, weil typescript-eslint TS 7 noch nicht unterstützt |
+| Zustand                    | Zustand 5                                                                | Minimal, selektive Abonnements, außerhalb von React nutzbar (Kernel)                                         |
+| Engine-Laufzeit            | Web Worker, In-Process-Fallback                                          | UI bleibt auch bei 32 768 GPUs flüssig                                                                       |
+| Laufzeitdaten              | Struct-of-Arrays in Typed Arrays                                         | Cache-freundlich, billig zu serialisieren und zu transferieren                                               |
+| Validierung externer Daten | Zod 4                                                                    | Persistierte und importierte Daten sind nicht vertrauenswürdig                                               |
+| Persistenz                 | IndexedDB über `idb`                                                     | Große Binärzustände (Typed Arrays) ohne Serialisierungsaufwand                                               |
+| Icons / Schriften          | lucide-react, Inter + JetBrains Mono (selbst gehostet über Fontsource)   | Keine externen Laufzeitabhängigkeiten, offline lauffähig                                                     |
+| Routing                    | Hash-basiert; `#/preview`, `#/components` interne Werkzeuge, sonst Shell | Funktioniert auf GitHub Pages ohne Server-Rewrites                                                           |
+| Shell-Ablauf               | Reine Zustandsmaschine + Phasen-Rendering                                | Testbar ohne DOM, keine widersprüchlichen Flags                                                              |
+| i18n                       | Eigene typisierte Wörterbücher (de/en)                                   | Kein Laufzeit-Framework nötig; Vollständigkeit vom Compiler erzwungen                                        |
+| Passwörter                 | PBKDF2-SHA-256, 600 000 Iterationen (Web Crypto)                         | OWASP-Empfehlung, ohne Zusatzbibliothek verfügbar                                                            |
+| Browsertests               | Playwright gegen den Produktions-Build                                   | Prüft den echten Ablauf inkl. IndexedDB, Worker und Reload                                                   |

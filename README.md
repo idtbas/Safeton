@@ -7,10 +7,12 @@ einzelnen 8-GPU-Server bis zum Hyperscale-Campus mit 32 768 GPUs.
 > Serververbindungen auf. Die Simulation ist deterministisch und leitet jeden angezeigten
 > Wert aus Katalogdaten, Topologie, Workloads und Anlagenzustand ab.
 
-**Stand: Etappe 1 von 5 — Fundament.** Enthalten sind Hardwarekatalog,
-Infrastrukturmodell mit Validierung, Simulationsengine im Web Worker, Persistenz,
-OS-Kern und Designsystem sowie eine interne _Engineering Preview_ zum Nachweis. Boot,
-Ersteinrichtung, Desktop und Anwendungen folgen in den nächsten Etappen.
+**Stand: Etappe 2 von 5 — Boot-Prozess und Ersteinrichtung.** Auf dem Fundament aus Etappe 1
+(Hardwarekatalog, Infrastrukturmodell mit Validierung, Simulationsengine im Web Worker,
+Persistenz, OS-Kern, Designsystem, interne _Engineering Preview_) startet Safeton jetzt wie
+ein Betriebssystem: Firmware/POST → Kernel & Dienste → Ersteinrichtung (13 Schritte) →
+Systeminitialisierung (optional Kaltstart aller Nodes) → Anmeldung → Workspace. Desktop mit
+Fensterverwaltung und Anwendungen folgen in Etappe 3.
 
 - Vision: [docs/VISION.md](docs/VISION.md)
 - Architektur: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -26,8 +28,15 @@ npm ci
 npm run dev        # Entwicklungsserver, http://localhost:5173
 ```
 
-Die Startseite ist die Engineering Preview (`#/preview`), die Komponentengalerie liegt
-unter `#/components`.
+Beim ersten Start bootet das System und führt durch die Ersteinrichtung (Administrator,
+Standort, Erscheinungsbild, Infrastruktur, Monitoring, Sicherheit). Der Fortschritt wird nach
+jedem Schritt gespeichert; ein Neuladen setzt am selben Schritt fort. Danach meldet man sich
+mit dem eingerichteten Konto an. Während des Boots: `Esc` überspringt, `V` zeigt das
+ausführliche Protokoll. „Zurücksetzen und neu einrichten…“ im Workspace löscht alles und
+startet die Einrichtung erneut.
+
+Interne Werkzeuge: Engineering Preview unter `#/preview`, Komponentengalerie unter
+`#/components` (auch aus dem Workspace verlinkt).
 
 ### Was die Engineering Preview zeigt
 
@@ -47,23 +56,24 @@ unter `#/components`.
 
 ## Skripte
 
-| Befehl                            | Zweck                                                                                                                   |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                     | Entwicklungsserver                                                                                                      |
-| `npm run build`                   | Typecheck und Produktions-Build nach `dist/`                                                                            |
-| `npm run preview`                 | Produktions-Build lokal ausliefern                                                                                      |
-| `npm test`                        | Vitest-Testsuite (Katalog, Validierung, Physik, Determinismus, Energiebilanz, Workloads, Ausfälle, Persistenz, Fenster) |
-| `npm run typecheck`               | TypeScript (strict)                                                                                                     |
-| `npm run lint`                    | ESLint inkl. Schichtregeln (Engine darf keine UI importieren)                                                           |
-| `npm run format` / `format:check` | Prettier                                                                                                                |
-| `npm run check`                   | Typecheck, Lint, Format und Tests in einem                                                                              |
-| `npm run bench`                   | Engine-Benchmark über alle Vorlagen                                                                                     |
-| `npm run docs:catalog`            | `docs/CATALOG.md` aus dem Katalog neu erzeugen                                                                          |
+| Befehl                            | Zweck                                                                                                                                                                              |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                     | Entwicklungsserver                                                                                                                                                                 |
+| `npm run build`                   | Typecheck und Produktions-Build nach `dist/`                                                                                                                                       |
+| `npm run preview`                 | Produktions-Build lokal ausliefern                                                                                                                                                 |
+| `npm test`                        | Vitest-Testsuite (Katalog, Validierung, Physik, Determinismus, Energiebilanz, Workloads, Ausfälle, Persistenz, Fenster, Shell-Zustandsmaschine, Setup, Migration, Anmeldung, i18n) |
+| `npm run test:e2e`                | Playwright-Browsertest: kompletter Setup-Durchlauf mit Reload, Boot, Login, zweiter Start; Screenshots in `e2e/screenshots/`                                                       |
+| `npm run typecheck`               | TypeScript (strict)                                                                                                                                                                |
+| `npm run lint`                    | ESLint inkl. Schichtregeln (Engine darf keine UI importieren)                                                                                                                      |
+| `npm run format` / `format:check` | Prettier                                                                                                                                                                           |
+| `npm run check`                   | Typecheck, Lint, Format und Tests in einem                                                                                                                                         |
+| `npm run bench`                   | Engine-Benchmark über alle Vorlagen                                                                                                                                                |
+| `npm run docs:catalog`            | `docs/CATALOG.md` aus dem Katalog neu erzeugen                                                                                                                                     |
 
 ## Deployment auf GitHub Pages
 
 Der Workflow `.github/workflows/ci.yml` prüft jeden Push und Pull Request (Typecheck, Lint,
-Format, Tests, Build). Pushes auf den **Standard-Branch** werden zusätzlich auf GitHub Pages
+Format, Tests, Build, Playwright-Browsertests mit Screenshots als Artefakt). Pushes auf den **Standard-Branch** werden zusätzlich auf GitHub Pages
 veröffentlicht; der Basis-Pfad (z. B. `/Safeton/`) wird automatisch gesetzt.
 
 Einmalige Einrichtung im Repository:
@@ -84,10 +94,13 @@ BASE_PATH=/Safeton/ npm run build && npx vite preview --base /Safeton/
 src/
   catalog/   Hardwarekatalog (GPUs, CPUs, Speicher, Netzwerk, Plattformen, Anlagentechnik, Modelle)
   engine/    Simulationsengine: model/ physics/ sim/ worker/
-  os/        OS-Kern: Kernel, Persistenz, Einstellungen, Fenster, Benachrichtigungen, App-Registry
+  os/        OS-Kern: Kernel, Persistenz, Einstellungen, Fenster, Benachrichtigungen, App-Registry,
+             Shell-Zustandsmaschine, Setup-Modell, Konten, i18n, Bestätigungsdienst
+  shell/     OS-Oberfläche: Boot, Ersteinrichtung, Anmeldung/Sperre, Workspace
   ui/        Designsystem: Tokens, Komponenten, Formatierung
   apps/      Anwendungen (Registry-Schnittstelle, ab Etappe 3 befüllt)
-  preview/   Etappe 1: Engineering Preview und Komponentengalerie
+  preview/   Interne Werkzeuge: Engineering Preview und Komponentengalerie
+e2e/         Playwright-Browsertests
 docs/        Vision, Architektur, Simulationsmodell, Katalog
 scripts/     Benchmark und Dokumentgenerator
 ```
