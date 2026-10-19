@@ -298,6 +298,11 @@ async function shortcut(combo, label, { x = 960, y = 880, show = 1.1 } = {}) {
 
 const title = (o) => page.evaluate((o) => window.addTitle(o), o);
 const chip = (o) => page.evaluate((o) => window.addChip(o), o);
+const fx = (o) => page.evaluate((o) => window.addFx(o), o);
+async function next(label = 'Weiter', dur = 0.3, opts = { arc: 0 }) {
+  await clickOn(footerBtn(label), dur, opts);
+  await fx({ type: 'sweep', t0: S.t, dur: 0.9, gain: 0.45 });
+}
 const cam = (props, dur, ease = 'cine', delay = 0) => anim(S.a, props, dur, ease, delay);
 const loadApp = (frameId, url) =>
   page.evaluate(([f, u]) => (document.getElementById(f).src = u), [frameId, url]);
@@ -313,6 +318,10 @@ async function film() {
   T.intro = S.t;
   S.intro = { t0: 0, cut: 5.0, cutScale: 0.536, cutY: 0 };
   sound('rise', { dur: 5.4 });
+  await fx({ type: 'bokeh', t0: 0.4, t1: 999, gain: 0.9 });
+  await fx({ type: 'form', t0: 0.15, dur: 1.7, hold: 2.1, cx: 960, cy: 540, scale: 5.25 });
+  await fx({ type: 'rays', t0: 1.4, t1: 5.4, x: 960, y: 540, gain: 1 });
+  await fx({ type: 'flare', t0: 2.55, dur: 1.8, x: 960, y: 540, gain: 0.75 });
   await hold(3.5);
   await loadApp('app', `${ORIGIN}/`);
   await hold(1.0, { appSpeed: 0.6 });
@@ -320,6 +329,10 @@ async function film() {
   const mp = toScreen(mark.cx, mark.cy);
   S.intro.cutY = mp.y - 540;
   S.intro.cutScale = (mark.w * S.a.z) / 168;
+  await fx({ type: 'burst', t0: 5.0, dur: 1.6, cx: 960, cy: 540 + S.intro.cutY, radius: 1250 });
+  await fx({ type: 'flare', t0: 5.0, dur: 1.4, x: 960, y: 540 + S.intro.cutY, gain: 1.2 });
+  await fx({ type: 'flash', t0: 4.92, dur: 0.6, color: '127,224,245', gain: 0.45 });
+  await fx({ type: 'ring', t0: 5.0, dur: 1.1, x: 960, y: 540 + S.intro.cutY, r: 900, color: '127,224,245' });
   await hold(Math.max(0, 5.0 - S.t), { appSpeed: 0.6 });
   sound('boom');
   anim(S.a, { opacity: 1 }, 0.7, 'inOut', 0.45);
@@ -329,6 +342,7 @@ async function film() {
   // ---- 1 · Boot in 3D ---------------------------------------------------------------------------
   T.boot = S.t;
   cam({ z: 0.74, rx: 7, ry: -17, ox: 330, oy: 10 }, 2.6);
+  await fx({ type: 'sweep', t0: S.t + 1.6, dur: 1.4, gain: 0.8 });
   await title({
     t0: S.t + 0.9,
     t1: S.t + 5.6,
@@ -360,10 +374,10 @@ async function film() {
     kicker: '01',
     text: 'Ersteinrichtung <span>· 13 Schritte, jeder live validiert</span>',
   });
-  await clickOn(footerBtn('Weiter'), 0.9);
+  await next('Weiter', 0.9, {});
   await waitFor(heading('Sprache & Region'));
   await hold(0.5);
-  await clickOn(footerBtn('Weiter'), 0.35, { arc: 0 });
+  await next('Weiter', 0.35);
   await waitFor(heading('Administrator'));
   const nameField = await waitFor({ field: 'Vollständiger Name' });
   cam({ cx: nameField.x + 330, cy: nameField.cy + 110, z: 1.85 }, 1.3);
@@ -375,13 +389,13 @@ async function film() {
   await type(PASSWORD, 24);
   await hold(0.4);
   cam({ ...FULL }, 1.1);
-  await clickOn(footerBtn('Weiter'), 0.8);
+  await next('Weiter', 0.8, {});
   await waitFor(heading('System & Standort'));
   await hold(0.35);
-  await clickOn(footerBtn('Weiter'), 0.3, { arc: 0 });
+  await next();
   await waitFor(heading('Erscheinungsbild'));
   await hold(0.35);
-  await clickOn(footerBtn('Weiter'), 0.3, { arc: 0 });
+  await next();
   await waitFor(heading('Infrastrukturprofil'));
 
   // Profiles
@@ -395,9 +409,19 @@ async function film() {
   await moveTo({ sel: '[role="radio"]', text: 'Single AI Server' }, 0.7);
   await moveTo({ sel: '[role="radio"]', text: 'GPU Rack' }, 0.45);
   await moveTo({ sel: '[role="radio"]', text: 'Enterprise AI' }, 0.45);
-  await clickOn({ sel: '[role="radio"]', text: 'Hyperscale AI Campus' }, 0.55);
+  const hyper = await clickOn({ sel: '[role="radio"]', text: 'Hyperscale AI Campus' }, 0.55);
+  await fx({
+    type: 'ring',
+    stage: true,
+    t0: S.t,
+    dur: 1.0,
+    x: hyper.cx,
+    y: hyper.cy,
+    r: 340,
+    color: '127,224,245',
+  });
   await hold(0.9);
-  await clickOn(footerBtn('Weiter'), 0.6);
+  await next('Weiter', 0.6, {});
   await waitFor(heading('Hardware'));
   const live = await waitFor({ sel: '.sh-live' });
   cam({ cx: Math.min(live.cx, W - 768 / 1.7), cy: live.y + 190, z: 1.7 }, 1.3);
@@ -408,32 +432,47 @@ async function film() {
     kicker: '03',
     text: 'Ingenieurprüfung <span>· Platz, Leistung, Kühlung, Redundanz</span>',
   });
+  await fx({
+    type: 'brackets',
+    t0: S.t + 0.6,
+    t1: S.t + 3.0,
+    x: live.x,
+    y: live.y,
+    w: live.w,
+    h: live.h,
+    label: 'DESIGN CHECK · PASS',
+  });
   await hold(2.8);
   cam({ ...FULL }, 0.9);
   await hold(0.5);
   for (const step of ['Netzwerk', 'Standort & Anlage', 'Monitoring', 'Sicherheit & Betrieb', 'Überprüfung']) {
-    await clickOn(footerBtn('Weiter'), 0.22, { arc: 0 });
+    await next('Weiter', 0.22);
     await waitFor(heading(step));
     await hold(0.18);
   }
   await hold(0.5);
-  await clickOn(footerBtn('System initialisieren'), 0.6);
+  await next('System initialisieren', 0.6, {});
 
   // ---- 3 · Infrastructure boot ---------------------------------------------------------------------
   T.infra = S.t;
   anim(S.cursor, { vis: 0 }, 0.3);
   await waitFor({ sel: '.sh-boot' }, { max: 20 });
   mouseLive = false;
-  cam({ z: 0.74, rx: 6, ry: 16, ox: -330, oy: 10 }, 2.4);
+  cam({ z: 0.6, rx: 6, ry: 18, ox: -440, oy: 10 }, 2.4);
   sound('whoosh');
-  await title({
-    t0: S.t + 0.8,
-    t1: S.t + 5.4,
-    kicker: 'Inbetriebnahme',
-    lines: ['4 096 Nodes.', '*Hochgefahren.*'],
-    sub: 'Fabric, Kühlung, Stromversorgung — in Sekunden simuliert.',
-    x: 1190,
-    y: 360,
+  await fx({ type: 'glitch', t0: S.t - 0.05, dur: 0.35, gain: 0.9 });
+  await fx({ type: 'speed', t0: S.t, t1: S.t + 1.5, x: 960, y: 540, gain: 1 });
+  await fx({ type: 'hologram', t0: S.t + 0.7, t1: S.t + 6.6, x: 1440, y: 500, size: 6, hmax: 62 });
+  await fx({
+    type: 'counter',
+    t0: S.t + 0.9,
+    t1: S.t + 6.4,
+    dur: 2.6,
+    value: 4096,
+    x: 1085,
+    y: 340,
+    label: 'NODES ONLINE',
+    sub: '32 768 GPUs · Fabric · Kühlung · Strom',
   });
   await hold(4.6, { appSpeed: 1.4 });
   await waitFor({ sel: '.sh-login' }, { max: 60, appSpeed: 2 });
@@ -462,6 +501,20 @@ async function film() {
   sound('key', { strong: true });
   await page.keyboard.press('Enter');
   await waitFor({ sel: '.os-desktop' }, { max: 20 });
+  const pwp = toScreen(pw.cx, pw.cy);
+  await fx({ type: 'flare', t0: S.t, dur: 1.3, x: pwp.x, y: pwp.y, gain: 1.1 });
+  await fx({
+    type: 'ring',
+    stage: true,
+    t0: S.t,
+    dur: 1.2,
+    x: pw.cx,
+    y: pw.cy,
+    r: 1300,
+    color: '200,245,255',
+  });
+  await fx({ type: 'flash', t0: S.t - 0.05, dur: 0.6, color: '200,245,255', gain: 0.5 });
+  await fx({ type: 'glitch', t0: S.t + 0.1, dur: 0.3, gain: 0.6 });
   cam({ ...FULL }, 1.6);
   sound('whoosh');
   await hold(1.4);
@@ -497,7 +550,17 @@ async function film() {
   await page.keyboard.press('Control+a');
   await type('8192', 9);
   await hold(1.4);
-  await clickOn({ sel: '.os-window[data-app="workloads"] button', text: 'Job starten' }, 0.8);
+  const start = await clickOn({ sel: '.os-window[data-app="workloads"] button', text: 'Job starten' }, 0.8);
+  await fx({
+    type: 'ring',
+    stage: true,
+    t0: S.t,
+    dur: 1.0,
+    x: start.cx,
+    y: start.cy,
+    r: 420,
+    color: '127,224,245',
+  });
   await hold(0.8);
   cam({ ...FULL }, 1.2);
   await hold(0.6);
@@ -531,6 +594,7 @@ async function film() {
   await page.mouse.up();
   S.cursor.press = false;
   sound('snap');
+  await fx({ type: 'edge', side: 'right', t0: S.t });
   await hold(0.5);
   const wl = await find({ sel: '.os-window[data-app="workloads"] .os-window__title' });
   await moveTo({ x: wl.cx, y: wl.cy }, 0.7);
@@ -543,6 +607,7 @@ async function film() {
   await page.mouse.up();
   S.cursor.press = false;
   sound('snap');
+  await fx({ type: 'edge', side: 'left', t0: S.t });
   await hold(0.8);
 
   // Cluster map close-up
@@ -555,6 +620,17 @@ async function film() {
     kicker: '08',
     text: '4 096 Nodes, live <span>· Auslastung, Temperatur, Leistung</span>',
   });
+  const grid = (await find({ sel: '.os-window[data-app="cluster"] .ap-grid canvas' })) ?? map;
+  await fx({
+    type: 'brackets',
+    t0: S.t + 1.0,
+    t1: S.t + 6.4,
+    x: grid.x,
+    y: grid.y,
+    w: grid.w,
+    h: grid.h,
+    label: '4096 NODES · LIVE TELEMETRY',
+  });
   await moveTo({ x: map.cx + 60, y: map.cy + 20 }, 1.4);
   await hold(1.0);
   const sel = await find({ sel: '.os-window[data-app="cluster"] select', label: 'Karte' });
@@ -566,6 +642,7 @@ async function film() {
   S.ripples.push({ sx: S.cursor.sx, sy: S.cursor.sy, age: 0 });
   sound('click');
   await page.keyboard.press('ArrowDown');
+  await fx({ type: 'sweep', t0: S.t, dur: 1.0, gain: 0.6 });
   await hold(1.6);
   await moveTo({ x: map.x + map.w * 0.3, y: map.y + map.h * 0.45 }, 0.9);
   await click();
@@ -583,11 +660,24 @@ async function film() {
     kicker: '09',
     text: 'Fehler injizieren <span>· Alarme in Echtzeit</span>',
   });
-  await clickOn(
+  const inject = await clickOn(
     { sel: '[role="dialog"] button, [role="alertdialog"] button', text: 'Fehler injizieren' },
     0.7,
   );
   sound('alert');
+  await fx({
+    type: 'ring',
+    stage: true,
+    t0: S.t,
+    dur: 1.1,
+    x: inject.cx,
+    y: inject.cy,
+    r: 700,
+    color: '255,70,90',
+  });
+  await fx({ type: 'flash', vignette: true, t0: S.t, dur: 1.3, color: '255,30,60', gain: 0.8 });
+  await fx({ type: 'shake', t0: S.t, dur: 0.7, amp: 10 });
+  await fx({ type: 'glitch', t0: S.t + 0.02, dur: 0.4, gain: 1 });
   cam({ cx: W - 300, cy: 160, z: 1.7 }, 1.4);
   await hold(2.6);
   cam({ ...FULL }, 1.3);
@@ -602,8 +692,20 @@ async function film() {
     kicker: '10',
     text: 'Hell oder dunkel <span>· systemweit</span>',
   });
-  await clickOn({ sel: 'button', text: 'Dunkelmodus' }, 0.8);
+  const dark = await clickOn({ sel: 'button', text: 'Dunkelmodus' }, 0.8);
   sound('snap');
+  await fx({
+    type: 'ring',
+    stage: true,
+    t0: S.t,
+    dur: 1.4,
+    x: dark.cx,
+    y: dark.cy,
+    r: 1900,
+    color: '255,255,255',
+    count: 3,
+  });
+  await fx({ type: 'flash', t0: S.t, dur: 0.7, color: '255,255,255', gain: 0.4 });
   await hold(1.4);
   await page.keyboard.press('Escape');
   await hold(0.8);
@@ -615,6 +717,10 @@ async function film() {
   await page.mouse.move(1919, 1079);
   cam({ z: 0.6, rx: 9, ry: -20, ox: 0, oy: 40 }, 2.6);
   anim(S, { floor: 1 }, 2.4, 'inOut', 0.6);
+  await fx({ type: 'speed', t0: S.t, t1: S.t + 1.8, gain: 0.9 });
+  await fx({ type: 'orbit', t0: S.t + 1.2, t1: S.t + 8.6 });
+  await fx({ type: 'links', t0: S.t + 1.8, t1: S.t + 8.4 });
+  await fx({ type: 'rays', t0: S.t + 1.0, t1: S.t + 8.4, x: 960, y: 560, gain: 0.55 });
   sound('whoosh');
   await title({
     align: 'center',
@@ -649,6 +755,8 @@ async function film() {
   anim(S, { floor: 0.6 }, 1.6);
   anim(S.b, { ox: 330, z: 0.68, ry: -14, rx: 4, opacity: 1, cx: W / 2, cy: H / 2 }, 1.9, 'cine', 0.1);
   sound('whoosh');
+  await fx({ type: 'speed', t0: S.t, t1: S.t + 1.4, x: 1300, y: 540, gain: 0.7 });
+  await fx({ type: 'flare', t0: S.t + 1.7, dur: 1.6, x: 1560, y: 300, gain: 0.55 });
   await title({
     t0: S.t + 0.9,
     t1: S.t + 5.8,
@@ -666,10 +774,14 @@ async function film() {
   cam({ blur: 18, opacity: 0, z: 0.5 }, 1.2, 'inOut');
   anim(S.b, { blur: 18, opacity: 0, z: 0.5 }, 1.2, 'inOut');
   anim(S, { floor: 0 }, 1.2);
-  await hold(0.6);
+  await hold(0.3);
   S.end = { t0: S.t };
+  await fx({ type: 'form', t0: S.t - 0.2, dur: 1.2, hold: 1.5, cx: 960, cy: 394, scale: 4 });
+  await fx({ type: 'rays', t0: S.t + 0.6, t1: S.t + 8, x: 960, y: 394, gain: 0.9 });
+  await fx({ type: 'flare', t0: S.t + 1.15, dur: 2.0, x: 960, y: 394, gain: 0.9 });
+  await hold(0.9);
   sound('boom', { soft: true });
-  await hold(5.6);
+  await hold(5.4);
   anim(S, { fade: 1 }, 1.2, 'inOut');
   await hold(1.4);
 }

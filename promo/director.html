@@ -443,6 +443,8 @@
       <div id="floor"></div>
     </div>
 
+    <canvas id="fxBack" class="layer" width="1920" height="1080"></canvas>
+
     <div id="world" class="layer">
       <div class="reflection" id="refl-a"></div>
       <div class="screen" id="screen-a">
@@ -458,6 +460,7 @@
       </div>
     </div>
 
+    <canvas id="fxFront" class="layer" width="1920" height="1080"></canvas>
     <div id="chips" class="layer"></div>
     <div id="titles" class="layer"></div>
 
@@ -544,6 +547,34 @@
     <div id="grain" class="layer"></div>
     <div id="fade" class="layer"></div>
 
+    <svg width="0" height="0" style="position: absolute">
+      <filter id="rgb" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feColorMatrix
+          in="SourceGraphic"
+          type="matrix"
+          values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"
+          result="r"
+        />
+        <feOffset id="rgb-r" in="r" dx="0" dy="0" result="r2" />
+        <feColorMatrix
+          in="SourceGraphic"
+          type="matrix"
+          values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"
+          result="g"
+        />
+        <feColorMatrix
+          in="SourceGraphic"
+          type="matrix"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"
+          result="b"
+        />
+        <feOffset id="rgb-b" in="b" dx="0" dy="0" result="b2" />
+        <feBlend mode="screen" in="r2" in2="g" result="rg" />
+        <feBlend mode="screen" in="rg" in2="b2" />
+      </filter>
+    </svg>
+
+    <script src="fx.js"></script>
     <script>
       const $ = (s) => document.querySelector(s);
       const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
@@ -755,11 +786,11 @@
         const lt = t - st.t0;
         el.style.opacity = 1;
         const items = [
-          ['.mark', 0.0],
-          ['.name', 0.35],
-          ['.claim', 0.8],
-          ['.url', 1.4],
-          ['.note', 1.9],
+          ['.mark', 0.95],
+          ['.name', 1.25],
+          ['.claim', 1.7],
+          ['.url', 2.3],
+          ['.note', 2.8],
         ];
         for (const [sel, d] of items) {
           const n = $(`#end ${sel}`);
@@ -769,7 +800,7 @@
           n.style.transform = `${base}translateY(${(1 - p) * 26}px)`;
           n.style.filter = `blur(${(1 - p) * 10}px)`;
         }
-        $('#end .name').style.letterSpacing = `${lerp(0.5, 0.32, prog(lt, 0.35, 1.6, ease.outExpo))}em`;
+        $('#end .name').style.letterSpacing = `${lerp(0.5, 0.32, prog(lt, 1.25, 1.6, ease.outExpo))}em`;
       }
 
       // ---- Frame --------------------------------------------------------------------------------
@@ -837,6 +868,7 @@
           keys.style.transform = `translate(-50%, -50%) scale(${0.9 + 0.1 * p * (s.keys.press ? 0.96 : 1)})`;
         } else keys.style.display = 'none';
 
+        window.renderFx(s);
         $('#grain').style.backgroundPosition = `${(t * 7919) % 256}px ${(t * 104729) % 256}px`;
         $('#fade').style.opacity = s.fade ?? 0;
       };
