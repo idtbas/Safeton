@@ -8,23 +8,25 @@ Verbindung zu realer Hardware.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ src/apps/        Anwendungen (ab Etappe 3) — registrieren nur ein Manifest   │
-│ src/shell/       OS-Oberfläche: Boot, Ersteinrichtung, Anmeldung, Workspace  │
-│ src/preview/     Interne Werkzeuge: Engineering Preview + Komponentengalerie │
+│ src/apps/        Anwendungen (Monitor, Cluster, Workloads, Anlage, …)        │
+│ src/shell/       OS-Oberfläche: Plattform-Gates, Boot, Ersteinrichtung,      │
+│                  Anmeldung, Desktop (Menüleiste, Dock, Fenster, Panels)      │
+│ src/preview/     Internes Werkzeug: Komponentengalerie (#/components)        │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ src/ui/          Designsystem: Tokens, Basiskomponenten, Formatierung        │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ src/os/          OS-Kern: Kernel, Persistenz, Einstellungen, Fenster,        │
-│                  Benachrichtigungen, Engine-Store, App-Registry, Shell-       │
-│                  Zustandsmaschine, Setup-Modell, Konten, i18n, Bestätigungen │
+│                  Benachrichtigungen, Engine-Store, App-Registry, Shell-      │
+│                  Zustandsmaschine, Setup-Modell, Konten, i18n,               │
+│                  Bestätigungen, Plattformprüfung                             │
 ├───────────────────────────── Nachrichtenprotokoll ───────────────────────────┤
-│ src/engine/      Simulationsengine (läuft im Web Worker)                      │
+│ src/engine/      Simulationsengine (läuft im Web Worker)                     │
 │   model/         InfraSpec → Topologie, Validierung, abgeleitete Kennzahlen  │
-│   physics/       Elektrik-, Thermik- und Facility-Modelle                     │
+│   physics/       Elektrik-, Thermik- und Facility-Modelle                    │
 │   sim/           Tick-Schleife, Zustände, Workloads, Ausfälle, Befehle       │
 │   worker/        Protokoll, Worker-Host, Client                              │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ src/catalog/     Hardwarekatalog (reine Daten mit Quellenkategorie)           │
+│ src/catalog/     Hardwarekatalog (reine Daten mit Quellenkategorie)          │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -106,10 +108,12 @@ Lesende Abfragen (`Query`): `topology`, `node.detail`, `job.detail`, `jobs`, `se
   Simulationszustand; Typed Arrays werden Base64-kodiert. Importierte Infrastruktur wird
   vor dem Laden vollständig validiert.
 - Autosave im Intervall aus den Einstellungen sowie bei `visibilitychange`/`pagehide`.
-- Einstellungen tragen Schemaversion **2**. Die Migration `migrateSettingsV1toV2`
-  (registriert als `MIGRATIONS.settings[1]`) ergänzt Monitoring-Schwellwerte,
-  Sicherheitsoptionen, Telemetrieintervall, Startmodus und Anzeigenamen und behält alle
-  vorhandenen Werte.
+- Einstellungen tragen Schemaversion **3**. `migrateSettingsV1toV2`
+  (`MIGRATIONS.settings[1]`) ergänzt Monitoring-Schwellwerte, Sicherheitsoptionen,
+  Telemetrieintervall, Startmodus und Anzeigenamen; `migrateSettingsV2toV3`
+  (`MIGRATIONS.settings[2]`) ergänzt den Abschnitt `desktop` (Hintergrund, Dock-Apps,
+  Dock-Vergrößerung, Desktopsymbole, Widget, Sekundenanzeige). Vorhandene Werte bleiben
+  jeweils erhalten.
 
 ## Shell-Ablauf
 
@@ -128,15 +132,16 @@ firmware ──FIRMWARE_DONE──▶ kernel ──CORE_READY{setupRequired}─�
                                          locked ◀──LOCK── workspace ◀──────────┘               │
                                               └──UNLOCKED──▶ workspace ────────────────────────┘
 FAIL (jede Phase) ──▶ error            RESTART ──▶ firmware
+SHUTDOWN (login / workspace / locked) ──▶ off  (Einschalten = Neuladen ⇒ firmware)
 ```
 
 Der Kernel bootet in zwei Phasen, damit die Ersteinrichtung dazwischen liegen kann:
 
-| Phase                        | Kernel-Funktion         | Schritte                                                                  |
-| ---------------------------- | ----------------------- | ------------------------------------------------------------------------- |
-| Kern                         | `bootCore()`            | Speicher, Konfiguration, Katalog, Administratorverzeichnis, Engine-Worker |
-| Infrastruktur                | `startInfrastructure()` | Zustand wiederherstellen oder Spezifikation initialisieren, Telemetrie    |
-| Beides (Engineering Preview) | `bootKernel()`          | Kern + Infrastruktur                                                      |
+| Phase                       | Kernel-Funktion         | Schritte                                                                  |
+| --------------------------- | ----------------------- | ------------------------------------------------------------------------- |
+| Kern                        | `bootCore()`            | Speicher, Konfiguration, Katalog, Administratorverzeichnis, Engine-Worker |
+| Infrastruktur               | `startInfrastructure()` | Zustand wiederherstellen oder Spezifikation initialisieren, Telemetrie    |
+| Beides (Komponentengalerie) | `bootKernel()`          | Kern + Infrastruktur                                                      |
 
 `setupRequired` ist wahr, solange `settings.system.setupComplete` fehlt oder kein
 Administratorkonto existiert. `resetAndReconfigure()` löscht alle Dokumente und startet neu
@@ -234,10 +239,13 @@ Oberfläche (`src/shell/setup/`) ist dünn.
   Referenzen, Einheiten und Plausibilität.
 - **Neue Plattform:** Komposition in `platforms.ts`; der Test „bottom-up power“ vergleicht
   die berechnete Spitzenleistung mit der veröffentlichten Systemleistung.
-- **Neue Anwendung (ab Etappe 3):** Komponente unter `src/apps/<name>/` anlegen und ein
-  `AppManifest` in `src/apps/index.ts` registrieren. Fenster entstehen über
-  `useWindowStore.open(appId, …)`; Daten kommen ausschließlich aus `useEngineStore` und
-  `kernel.query`/`kernel.command`.
+- **Neue Anwendung:** Komponente unter `src/apps/<name>/` anlegen (Standardexport, wird
+  per `lazy()` nachgeladen), Texte in `en.ts`/`de.ts` ergänzen und ein `AppManifest`
+  (Titel, Beschreibung, Symbol, Farbton, Kategorie, Größen, `singleton`) in
+  `src/apps/index.ts` registrieren. Damit erscheint die App im Starter, in der Suche und
+  optional im Dock. Geöffnet wird über `openApp(appId, args)` (`src/apps/launch.ts`); Daten
+  kommen ausschließlich aus `useEngineStore` und `kernel.query`/`kernel.command`
+  (Befehle mit Bestätigung über `run()` aus `src/apps/common/shared.ts`).
 - **Neuer Befehl:** Typ in `Command` ergänzen, Handler in `sim/commands.ts`. Der Compiler
   erzwingt die vollständige Behandlung (erschöpfender `switch`).
 - **Schemaänderung persistierter Daten:** Version in `CURRENT_VERSIONS` erhöhen und eine
@@ -245,17 +253,82 @@ Oberfläche (`src/shell/setup/`) ist dünn.
 
 ## Entscheidungen
 
-| Thema                      | Entscheidung                                                             | Begründung                                                                                                   |
-| -------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Build                      | Vite 8, React 19, TypeScript 6 (strict)                                  | Schneller Build, Worker-Bundling eingebaut; TS 6 statt 7, weil typescript-eslint TS 7 noch nicht unterstützt |
-| Zustand                    | Zustand 5                                                                | Minimal, selektive Abonnements, außerhalb von React nutzbar (Kernel)                                         |
-| Engine-Laufzeit            | Web Worker, In-Process-Fallback                                          | UI bleibt auch bei 32 768 GPUs flüssig                                                                       |
-| Laufzeitdaten              | Struct-of-Arrays in Typed Arrays                                         | Cache-freundlich, billig zu serialisieren und zu transferieren                                               |
-| Validierung externer Daten | Zod 4                                                                    | Persistierte und importierte Daten sind nicht vertrauenswürdig                                               |
-| Persistenz                 | IndexedDB über `idb`                                                     | Große Binärzustände (Typed Arrays) ohne Serialisierungsaufwand                                               |
-| Icons / Schriften          | lucide-react, Inter + JetBrains Mono (selbst gehostet über Fontsource)   | Keine externen Laufzeitabhängigkeiten, offline lauffähig                                                     |
-| Routing                    | Hash-basiert; `#/preview`, `#/components` interne Werkzeuge, sonst Shell | Funktioniert auf GitHub Pages ohne Server-Rewrites                                                           |
-| Shell-Ablauf               | Reine Zustandsmaschine + Phasen-Rendering                                | Testbar ohne DOM, keine widersprüchlichen Flags                                                              |
-| i18n                       | Eigene typisierte Wörterbücher (de/en)                                   | Kein Laufzeit-Framework nötig; Vollständigkeit vom Compiler erzwungen                                        |
-| Passwörter                 | PBKDF2-SHA-256, 600 000 Iterationen (Web Crypto)                         | OWASP-Empfehlung, ohne Zusatzbibliothek verfügbar                                                            |
-| Browsertests               | Playwright gegen den Produktions-Build                                   | Prüft den echten Ablauf inkl. IndexedDB, Worker und Reload                                                   |
+| Thema                      | Entscheidung                                                              | Begründung                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Build                      | Vite 8, React 19, TypeScript 6 (strict)                                   | Schneller Build, Worker-Bundling eingebaut; TS 6 statt 7, weil typescript-eslint TS 7 noch nicht unterstützt |
+| Zustand                    | Zustand 5                                                                 | Minimal, selektive Abonnements, außerhalb von React nutzbar (Kernel)                                         |
+| Engine-Laufzeit            | Web Worker, In-Process-Fallback                                           | UI bleibt auch bei 32 768 GPUs flüssig                                                                       |
+| Laufzeitdaten              | Struct-of-Arrays in Typed Arrays                                          | Cache-freundlich, billig zu serialisieren und zu transferieren                                               |
+| Validierung externer Daten | Zod 4                                                                     | Persistierte und importierte Daten sind nicht vertrauenswürdig                                               |
+| Persistenz                 | IndexedDB über `idb`                                                      | Große Binärzustände (Typed Arrays) ohne Serialisierungsaufwand                                               |
+| Icons / Schriften          | lucide-react, Inter + JetBrains Mono (selbst gehostet über Fontsource)    | Keine externen Laufzeitabhängigkeiten, offline lauffähig                                                     |
+| Routing                    | Hash-basiert; `#/components` internes Werkzeug, sonst Shell               | Funktioniert auf GitHub Pages ohne Server-Rewrites                                                           |
+| Shell-Ablauf               | Reine Zustandsmaschine + Phasen-Rendering                                 | Testbar ohne DOM, keine widersprüchlichen Flags                                                              |
+| i18n                       | Eigene typisierte Wörterbücher (de/en)                                    | Kein Laufzeit-Framework nötig; Vollständigkeit vom Compiler erzwungen                                        |
+| Passwörter                 | PBKDF2-SHA-256, 600 000 Iterationen (Web Crypto)                          | OWASP-Empfehlung, ohne Zusatzbibliothek verfügbar                                                            |
+| Browsertests               | Playwright gegen den Produktions-Build                                    | Prüft den echten Ablauf inkl. IndexedDB, Worker und Reload                                                   |
+| Auslieferung               | Nur als installierte PWA (standalone), nur Desktop/Tablet im Desktopmodus | Fühlt sich wie ein eigenständiges System an: kein Browser-Rahmen, offline startfähig                         |
+| Fenster-Inhalt             | Lazy geladene Apps, Fehlergrenze pro Fenster, Container Queries           | Kleiner Start-Bundle; ein App-Fehler reißt den Desktop nicht mit; Layout passt sich der Fenstergröße an      |
+| Menüs                      | Portale in `document.body`                                                | Verschachteltes `backdrop-filter` der Menüleiste würde Menüs sonst unscharf/transparent machen               |
+
+## Plattform und Auslieferung
+
+`src/Root.tsx` prüft vor allem anderen zwei Bedingungen (`src/os/platform.ts`, reine und
+getestete Funktionen):
+
+1. **Gerät** (`assessDevice`): Smartphones (iPhone, Android mit „Mobile“,
+   `userAgentData.mobile`) und Tablets in der Mobilansicht (iPad-UA, Android ohne „Mobile“)
+   werden abgewiesen, ebenso Bildschirme unter 1024 × 640 CSS-Pixeln. iPadOS im
+   Desktopmodus meldet sich als „Macintosh“ mit Touchpunkten und ist zugelassen.
+2. **Installation** (`isStandaloneDisplay`): Die Konsole läuft nur als installierte
+   Anwendung (`display-mode` standalone / fullscreen / window-controls-overlay oder
+   `navigator.standalone`). Sonst zeigt `InstallGate` plattformgerechte Anweisungen
+   (Chromium: Installationsdialog über `beforeinstallprompt`; Safari macOS: „Zum Dock
+   hinzufügen“; iPadOS: Teilen → „Zum Home-Bildschirm“; Firefox: anderer Browser nötig) und
+   eine Prüfung der Voraussetzungen (Web Crypto, IndexedDB, Worker, sicherer Kontext).
+   Nur der Entwicklungs-Build (`npm run dev`) bietet „Im Browser fortfahren“.
+
+Während des Betriebs blendet `ViewportGuard` unter 1024 × 600 Pixeln eine Sperre ein
+(„Fenster vergrößern“ bzw. „Gerät drehen“).
+
+- **Manifest** (`public/manifest.webmanifest`): `standalone` mit `display_override`
+  `window-controls-overlay`, Querformat, Symbole in 192/512 px inkl. maskierbarer Variante
+  (`npm run icons` erzeugt die PNGs aus den SVGs).
+- **Service Worker** (`public/sw.js`, nur im Produktions-Build registriert): Navigation
+  netzwerk-first mit Offline-Rückfall, Assets cache-first. Der Cache-Name enthält den Scope.
+- **Window Controls Overlay:** Die Menüleiste nutzt `env(titlebar-area-*)` und
+  `app-region: drag`, sodass sie unter Windows/ChromeOS/macOS die Titelleiste ersetzt.
+- **Browserverhalten abgeschaltet** (`src/shell/useOsChrome.ts`): Kontextmenü (außer in
+  Eingabefeldern), Seitenzoom per Strg+Mausrad/Strg ±, Pinch-Gesten, Ziehen von Bildern und
+  Links, Textauswahl außerhalb von Inhalten.
+
+## Desktop-Umgebung
+
+`src/shell/desktop/` bildet die Arbeitsumgebung nach der Anmeldung:
+
+| Teil              | Datei                                  | Aufgabe                                                                                     |
+| ----------------- | -------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Menüleiste        | `MenuBar.tsx`                          | Systemmenü, App-, Fenster-, Gehe-zu-, Hilfemenü; Statusbereich (Cluster, Alarme, Uhr)       |
+| Dock              | `Dock.tsx`                             | Angeheftete und laufende Apps, Laufanzeige, Vergrößerung, Starter                           |
+| Starter / Suche   | `Launcher.tsx`                         | Apps, Nodes und Jobs durchsuchen (Strg/⌘ + K oder Strg/⌘ + Leertaste)                       |
+| Panels            | `Panels.tsx`                           | Kontrollzentrum, Mitteilungszentrale, Kalender                                              |
+| Fenster           | `WindowLayer.tsx`, `os/windows/*`      | Ziehen, Größe, Einrasten (links/rechts/maximieren), Kacheln, Wechseln, Fehlergrenze pro App |
+| Oberfläche        | `DesktopSurface.tsx`                   | Hintergrund, Desktopsymbole, Cluster-Widget, Kontextmenü                                    |
+| Systemdialoge     | `SystemDialogs.tsx`                    | Neustart/Ausschalten mit 60-s-Countdown, Tastenkürzel                                       |
+| Aktionen / Kürzel | `actions.ts`, `useDesktopShortcuts.ts` | Sperren, Abmelden, Ruhezustand, Neustart, Ausschalten, Speichern, Vollbild                  |
+| Energiezustände   | `../PowerScreens.tsx`                  | Ausgeschaltet (Einschalten = Kaltstart) und Ruhezustand                                     |
+
+Anwendungen (`src/apps/`):
+
+| App           | ID          | Inhalt                                                                                                                         |
+| ------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Monitor       | `monitor`   | Simulationssteuerung, Kennzahlen, Leistungsbilanz, Node-Zustände, Engine-Leistung                                              |
+| Cluster       | `cluster`   | Node-Karte (Auslastung/Temperatur/Leistung), Auswahl, Befehle, Fehlerinjektion                                                 |
+| Node          | `node`      | Einzelner Node (mehrere Fenster möglich): GPUs, Sensoren, Fehler, Befehle                                                      |
+| Workloads     | `workloads` | Jobs planen (Auto-Planer-Vorschau) und starten, laufende Jobs, Abbruch                                                         |
+| Anlage        | `facility`  | Übersicht, Anlagentechnik (USV, Kühlung), Konfiguration und Sollwerte                                                          |
+| Ereignisse    | `events`    | Ereignisprotokoll mit Filter nach Schweregrad, Quelle und Text                                                                 |
+| Einstellungen | `settings`  | Konto (inkl. Passwortwechsel), Darstellung, Desktop, Region, Mitteilungen, Monitoring, Sicherheit, Simulation, Sicherung, Info |
+| Über Safeton  | `about`     | Version, System- und Clusterdaten                                                                                              |
+
+Fensterlayouts werden nicht persistiert: Ein Neustart beginnt mit leerem Desktop.

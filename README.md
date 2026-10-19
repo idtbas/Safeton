@@ -7,12 +7,17 @@ einzelnen 8-GPU-Server bis zum Hyperscale-Campus mit 32 768 GPUs.
 > Serververbindungen auf. Die Simulation ist deterministisch und leitet jeden angezeigten
 > Wert aus Katalogdaten, Topologie, Workloads und Anlagenzustand ab.
 
-**Stand: Etappe 2 von 5 — Boot-Prozess und Ersteinrichtung.** Auf dem Fundament aus Etappe 1
-(Hardwarekatalog, Infrastrukturmodell mit Validierung, Simulationsengine im Web Worker,
-Persistenz, OS-Kern, Designsystem, interne _Engineering Preview_) startet Safeton jetzt wie
-ein Betriebssystem: Firmware/POST → Kernel & Dienste → Ersteinrichtung (13 Schritte) →
-Systeminitialisierung (optional Kaltstart aller Nodes) → Anmeldung → Workspace. Desktop mit
-Fensterverwaltung und Anwendungen folgen in Etappe 3.
+**Stand: Etappe 2 von 5 + Desktop-Umgebung.** Safeton startet wie ein Betriebssystem:
+Firmware/POST → Kernel & Dienste → Ersteinrichtung (13 Schritte) → Systeminitialisierung
+(optional Kaltstart aller Nodes) → Anmeldung → Desktop mit Menüleiste, Dock, Fenstern,
+Systemsuche, Kontroll- und Mitteilungszentrale. Sieben Anwendungen laufen in eigenen Fenstern:
+Systemmonitor, Cluster-Manager (mit Node-Detailfenstern), Workloads, Rechenzentrum,
+Ereignisse & Logs, Einstellungen und „Über Safeton“.
+
+**Plattform:** nur Desktop-Computer und Tablets im Desktop-Modus (Querformat, ab 1024 × 640
+Pixel). Safeton startet **ausschließlich als installierte Anwendung** (PWA: „Installieren“ in
+Chrome/Edge, „Zum Dock hinzufügen“ in Safari, „Zum Home-Bildschirm“ auf dem iPad) — im
+normalen Browser-Tab erscheint stattdessen die Installationsanleitung.
 
 - Vision: [docs/VISION.md](docs/VISION.md)
 - Architektur: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -28,31 +33,31 @@ npm ci
 npm run dev        # Entwicklungsserver, http://localhost:5173
 ```
 
+Im Entwicklungs-Build zeigt die Installationsseite zusätzlich „Im Browser fortfahren (nur
+Entwicklungs-Build)“; Produktions-Builds haben diese Abkürzung nicht. Zum Testen der echten
+Installation: `npm run build && npm run preview`, dann in Chrome über das Installationssymbol in
+der Adressleiste installieren.
+
 Beim ersten Start bootet das System und führt durch die Ersteinrichtung (Administrator,
 Standort, Erscheinungsbild, Infrastruktur, Monitoring, Sicherheit). Der Fortschritt wird nach
-jedem Schritt gespeichert; ein Neuladen setzt am selben Schritt fort. Danach meldet man sich
-mit dem eingerichteten Konto an. Während des Boots: `Esc` überspringt, `V` zeigt das
-ausführliche Protokoll. „Zurücksetzen und neu einrichten…“ im Workspace löscht alles und
-startet die Einrichtung erneut.
+jedem Schritt gespeichert; ein Neuladen setzt am selben Schritt fort. Während des Boots: `Esc`
+überspringt, `V` zeigt die Boot-Konsole.
 
-Interne Werkzeuge: Engineering Preview unter `#/preview`, Komponentengalerie unter
-`#/components` (auch aus dem Workspace verlinkt).
+### Bedienung des Desktops
 
-### Was die Engineering Preview zeigt
+| Aktion                     | So geht's                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Programme starten          | Dock, Doppelklick auf Desktop-Symbole, Programmübersicht (Raster-Symbol im Dock)                        |
+| Systemsuche                | `Strg/⌘ K` — Apps, Aktionen, Einstellungen, Nodes (Hostname/Rack), Jobs                                 |
+| Fenster anordnen           | Titelleiste an linken/rechten Rand ziehen (halbe Fläche), an oberen Rand (Vollbild); `Strg Alt ←/→/↑/↓` |
+| Fenster wechseln/schließen | ``Alt ` `` (wechseln), `Alt W` (schließen), `Alt M` (minimieren); Menü „Fenster“                        |
+| Sperren · Neustart · Aus   | `Strg Alt L` · `Strg/⌘ R` · Systemmenü (Logo oben links)                                                |
+| Systemzustand sichern      | `Strg/⌘ S`                                                                                              |
+| Tastenkürzel               | `Strg/⌘ /`                                                                                              |
 
-1. **Infrastrukturvorlage laden** — sechs Vorlagen (Einzelserver bis Hyperscale) inklusive
-   Validierungsbericht und abgeleiteter Kennzahlen (Peak-FLOPS, HBM, Fabric, Leistung, PUE,
-   CapEx, Energiekosten).
-2. **Simulation steuern** — Start/Pause, Einzelschritte, Zeitfaktor 1×–1800×,
-   Ausfallrate, automatische Behebung.
-3. **Trainingsjob starten** — der Auto-Planer zeigt Parallelisierung, Speicherbedarf, Schrittzeit
-   und MFU vor dem Absenden. Danach steigen Auslastung, Leistung, Temperatur,
-   HBM-Belegung und Fabric-Verkehr kausal an; Checkpoints erscheinen im Ereignisprotokoll.
-4. **Ausfälle auslösen** — Node-Crash, GPU-Xid, PSU, NIC, Lüfter, Switch, Kühlgerät,
-   Kältemaschine. Jobs brechen ab, verlieren den Fortschritt seit dem letzten Checkpoint und
-   starten neu; Nodes werden repariert.
-5. **Persistenz** — Zustand wird automatisch in IndexedDB gespeichert; nach einem Neuladen
-   läuft die Simulation an derselben Stelle weiter. Export/Import als JSON, Reset.
+Rechtsklick öffnet Kontextmenüs (Schreibtisch, Fenstertitel, Dock); das Browser-Kontextmenü,
+Seitenzoom und Textauswahl außerhalb von Inhalten sind abgeschaltet. Entwicklerwerkzeug:
+Hilfe → Entwicklung → Designsystem (`#/components`).
 
 ## Skripte
 
@@ -68,6 +73,7 @@ Interne Werkzeuge: Engineering Preview unter `#/preview`, Komponentengalerie unt
 | `npm run format` / `format:check` | Prettier                                                                                                                                                                           |
 | `npm run check`                   | Typecheck, Lint, Format und Tests in einem                                                                                                                                         |
 | `npm run bench`                   | Engine-Benchmark über alle Vorlagen                                                                                                                                                |
+| `npm run icons`                   | App-Icons (PNG) aus den SVG-Quellen in `public/icons` erzeugen                                                                                                                     |
 | `npm run docs:catalog`            | `docs/CATALOG.md` aus dem Katalog neu erzeugen                                                                                                                                     |
 
 ## Deployment auf GitHub Pages
@@ -96,10 +102,10 @@ src/
   engine/    Simulationsengine: model/ physics/ sim/ worker/
   os/        OS-Kern: Kernel, Persistenz, Einstellungen, Fenster, Benachrichtigungen, App-Registry,
              Shell-Zustandsmaschine, Setup-Modell, Konten, i18n, Bestätigungsdienst
-  shell/     OS-Oberfläche: Boot, Ersteinrichtung, Anmeldung/Sperre, Workspace
+  shell/     OS-Oberfläche: Plattform-Gates, Boot, Ersteinrichtung, Anmeldung/Sperre, Desktop
   ui/        Designsystem: Tokens, Komponenten, Formatierung
-  apps/      Anwendungen (Registry-Schnittstelle, ab Etappe 3 befüllt)
-  preview/   Interne Werkzeuge: Engineering Preview und Komponentengalerie
+  apps/      Anwendungen (Systemmonitor, Cluster, Workloads, Rechenzentrum, Ereignisse, Einstellungen, Über)
+  preview/   Entwicklerwerkzeug: Komponentengalerie des Designsystems
 e2e/         Playwright-Browsertests
 docs/        Vision, Architektur, Simulationsmodell, Katalog
 scripts/     Benchmark und Dokumentgenerator
