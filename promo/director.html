@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Safeton — Film</title>
+    <style>
+      :root {
+        --accent: #3fc1e0;
+        --accent-hi: #7fe0f5;
+        --ink: #f3f6fa;
+        --ink-2: rgba(226, 234, 243, 0.72);
+        --ink-3: rgba(226, 234, 243, 0.46);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #030406;
+        font-family: 'Inter', system-ui, sans-serif;
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+      }
+      .layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      /* ---- Background -------------------------------------------------------------------- */
+      #bg {
+        background: #030406;
+      }
+      #bg .glow {
+        position: absolute;
+        width: 1400px;
+        height: 1400px;
+        border-radius: 50%;
+      }
+      #bg .g1 {
+        background: radial-gradient(
+          closest-side,
+          rgba(40, 160, 195, 0.2),
+          rgba(40, 160, 195, 0.07) 45%,
+          rgba(40, 160, 195, 0) 100%
+        );
+      }
+      #bg .g2 {
+        background: radial-gradient(
+          closest-side,
+          rgba(96, 84, 230, 0.16),
+          rgba(96, 84, 230, 0.05) 45%,
+          rgba(96, 84, 230, 0) 100%
+        );
+      }
+      #bg .g3 {
+        background: radial-gradient(
+          closest-side,
+          rgba(30, 110, 150, 0.12),
+          rgba(30, 110, 150, 0.04) 45%,
+          rgba(30, 110, 150, 0) 100%
+        );
+      }
+      #floor {
+        position: absolute;
+        left: -10%;
+        right: -10%;
+        bottom: -8%;
+        height: 60%;
+        background-image:
+          linear-gradient(rgba(127, 224, 245, 0.07) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(127, 224, 245, 0.07) 1px, transparent 1px);
+        background-size: 72px 72px;
+        transform-origin: 50% 0;
+        transform: perspective(900px) rotateX(64deg);
+        mask-image: linear-gradient(to bottom, transparent 0%, #000 35%, #000 55%, transparent 100%);
+      }
+      /* ---- World / screens --------------------------------------------------------------- */
+      #world {
+        perspective: 2600px;
+        perspective-origin: 960px 540px;
+      }
+      .screen {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1536px;
+        height: 864px;
+        transform-origin: 0 0;
+        overflow: hidden;
+        background: #000;
+        pointer-events: auto;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.09),
+          0 50px 120px -20px rgba(0, 0, 0, 0.85),
+          0 30px 60px -30px rgba(0, 0, 0, 0.9);
+      }
+      .screen iframe {
+        position: absolute;
+        inset: 0;
+        width: 1536px;
+        height: 864px;
+        border: 0;
+        display: block;
+        background: #000;
+      }
+      .screen .glare {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          115deg,
+          rgba(255, 255, 255, 0) 30%,
+          rgba(255, 255, 255, 0.07) 46%,
+          rgba(255, 255, 255, 0) 60%
+        );
+        mix-blend-mode: screen;
+        opacity: 0;
+      }
+      .screen .shade,
+      .screen .glare {
+        pointer-events: none;
+      }
+      .screen .shade {
+        position: absolute;
+        inset: 0;
+        background: #000;
+        opacity: 0;
+      }
+      .reflection {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1536px;
+        height: 864px;
+        transform-origin: 0 0;
+        background: radial-gradient(60% 50% at 50% 0%, rgba(63, 193, 224, 0.22), rgba(63, 193, 224, 0) 70%);
+        filter: blur(30px);
+        opacity: 0;
+      }
+      /* ---- Intro logo -------------------------------------------------------------------- */
+      #intro {
+        display: grid;
+        place-items: center;
+      }
+      #intro .beam {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        height: 1px;
+        width: 1200px;
+        margin-left: -600px;
+        background: linear-gradient(90deg, transparent, var(--accent-hi), transparent);
+        box-shadow: 0 0 24px 2px rgba(127, 224, 245, 0.45);
+      }
+      #intro .mark {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 168px;
+        height: 168px;
+        margin: -84px 0 0 -84px;
+      }
+      #intro .mark svg {
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        filter: drop-shadow(0 0 18px rgba(63, 193, 224, 0.55));
+      }
+      #intro .word {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        margin-top: 120px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 64px;
+        letter-spacing: 0.34em;
+        padding-left: 0.34em;
+        color: var(--ink);
+      }
+      #intro .tag {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        margin-top: 222px;
+        text-align: center;
+        font-size: 30px;
+        font-weight: 400;
+        color: var(--ink-2);
+        letter-spacing: -0.005em;
+      }
+      /* ---- Titles ------------------------------------------------------------------------ */
+      .title {
+        position: absolute;
+      }
+      .title .kicker {
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        font-size: 17px;
+        font-weight: 500;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--accent-hi);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 26px;
+      }
+      .title .kicker i {
+        display: block;
+        height: 1px;
+        width: 56px;
+        background: var(--accent);
+        transform-origin: 0 50%;
+      }
+      .title .head {
+        font-size: 76px;
+        line-height: 1.04;
+        font-weight: 650;
+        letter-spacing: -0.032em;
+      }
+      .title .line {
+        display: block;
+        overflow: hidden;
+        padding: 0.04em 0 0.1em;
+        margin-bottom: -0.1em;
+      }
+      .title .w {
+        display: inline-block;
+        white-space: pre;
+      }
+      .title .sub {
+        margin-top: 26px;
+        font-size: 26px;
+        line-height: 1.45;
+        color: var(--ink-2);
+        max-width: 640px;
+      }
+      .title.center {
+        left: 0;
+        right: 0;
+        text-align: center;
+      }
+      .title.center .kicker {
+        justify-content: center;
+      }
+      .title.center .sub {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .title .accent {
+        color: var(--accent-hi);
+      }
+      /* Lower caption */
+      .cap {
+        position: absolute;
+        left: 50%;
+        top: 30px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 16px 26px 16px 18px;
+        border-radius: 18px;
+        background: rgba(8, 11, 15, 0.72);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.1),
+          0 20px 50px -10px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(24px) saturate(1.4);
+        white-space: nowrap;
+      }
+      .cap .num {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 15px;
+        color: var(--accent-ink, #04141a);
+        background: var(--accent-hi);
+        border-radius: 8px;
+        padding: 6px 9px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+      }
+      .cap .txt {
+        font-size: 27px;
+        font-weight: 550;
+        letter-spacing: -0.012em;
+      }
+      .cap .txt span {
+        color: var(--ink-3);
+        font-weight: 450;
+      }
+      /* Feature chips */
+      .chip {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 22px 14px 16px;
+        border-radius: 999px;
+        background: rgba(10, 14, 19, 0.78);
+        box-shadow:
+          0 0 0 1px rgba(127, 224, 245, 0.22),
+          0 18px 40px -12px rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(18px);
+        font-size: 22px;
+        font-weight: 550;
+        white-space: nowrap;
+      }
+      .chip b {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--accent-hi);
+        box-shadow: 0 0 12px var(--accent);
+      }
+      /* Cursor + keys */
+      #cursor {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 30px;
+        height: 30px;
+        transform-origin: 0 0;
+        filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
+      }
+      .ripple {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        margin: -30px 0 0 -30px;
+        border-radius: 50%;
+        border: 2px solid var(--accent-hi);
+        box-shadow: 0 0 18px rgba(127, 224, 245, 0.5);
+      }
+      #keys {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        display: flex;
+        gap: 12px;
+      }
+      #keys kbd {
+        display: inline-grid;
+        place-items: center;
+        min-width: 86px;
+        height: 86px;
+        padding: 0 24px;
+        border-radius: 18px;
+        font-family: 'Inter', sans-serif;
+        font-size: 34px;
+        font-weight: 600;
+        color: var(--ink);
+        background: linear-gradient(180deg, rgba(40, 46, 56, 0.92), rgba(18, 22, 28, 0.92));
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.14),
+          inset 0 1px 0 rgba(255, 255, 255, 0.12),
+          0 6px 0 rgba(0, 0, 0, 0.5),
+          0 24px 50px -10px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(20px);
+      }
+      /* Finishing */
+      #vignette {
+        background: radial-gradient(130% 100% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+      }
+      #grain {
+        opacity: 0.045;
+        mix-blend-mode: overlay;
+        background-size: 256px 256px;
+      }
+      #fade {
+        background: #000;
+        opacity: 0;
+      }
+      #end {
+        opacity: 0;
+      }
+      #end .mark {
+        position: absolute;
+        left: 50%;
+        top: 330px;
+        width: 128px;
+        height: 128px;
+        margin-left: -64px;
+      }
+      #end .mark svg {
+        width: 100%;
+        height: 100%;
+        filter: drop-shadow(0 0 22px rgba(63, 193, 224, 0.5));
+      }
+      #end .name {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 500px;
+        text-align: center;
+        font-size: 60px;
+        font-weight: 600;
+        letter-spacing: 0.32em;
+        padding-left: 0.32em;
+      }
+      #end .claim {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 600px;
+        text-align: center;
+        font-size: 34px;
+        color: var(--ink-2);
+        letter-spacing: -0.01em;
+      }
+      #end .url {
+        position: absolute;
+        left: 50%;
+        top: 700px;
+        transform: translateX(-50%);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 20px;
+        letter-spacing: 0.04em;
+        color: var(--accent-hi);
+        padding: 12px 22px;
+        border-radius: 999px;
+        box-shadow: 0 0 0 1px rgba(127, 224, 245, 0.3);
+        background: rgba(63, 193, 224, 0.06);
+      }
+      #end .note {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 64px;
+        text-align: center;
+        font-size: 16px;
+        color: var(--ink-3);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="bg" class="layer">
+      <div class="glow g1"></div>
+      <div class="glow g2"></div>
+      <div class="glow g3"></div>
+      <div id="floor"></div>
+    </div>
+
+    <div id="world" class="layer">
+      <div class="reflection" id="refl-a"></div>
+      <div class="screen" id="screen-a">
+        <iframe id="app" title="Safeton"></iframe>
+        <div class="glare"></div>
+        <div class="shade"></div>
+      </div>
+      <div class="reflection" id="refl-b"></div>
+      <div class="screen" id="screen-b">
+        <iframe id="gate" title="Safeton Installation"></iframe>
+        <div class="glare"></div>
+        <div class="shade"></div>
+      </div>
+    </div>
+
+    <div id="chips" class="layer"></div>
+    <div id="titles" class="layer"></div>
+
+    <div id="intro" class="layer">
+      <div class="beam"></div>
+      <div class="mark">
+        <svg viewBox="0 0 32 32">
+          <path
+            class="top"
+            d="M16 7 24 11.5 16 16 8 11.5z"
+            fill="#3fc1e0"
+            fill-opacity="0.16"
+            stroke="none"
+          />
+          <path
+            class="inner"
+            d="M8 11.5 16 16l8-4.5M16 16v9"
+            fill="none"
+            stroke="#3fc1e0"
+            stroke-width="1.3"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+            pathLength="1"
+          />
+          <path
+            class="outer"
+            d="M8 11.5 16 7l8 4.5v9L16 25l-8-4.5z"
+            fill="none"
+            stroke="#7fe0f5"
+            stroke-width="1.4"
+            stroke-linejoin="round"
+            pathLength="1"
+          />
+        </svg>
+      </div>
+      <div class="word">SAFETON</div>
+      <div class="tag"></div>
+    </div>
+
+    <div id="end" class="layer">
+      <div class="mark">
+        <svg viewBox="0 0 32 32">
+          <path d="M16 7 24 11.5 16 16 8 11.5z" fill="#3fc1e0" fill-opacity="0.16" />
+          <path
+            d="M8 11.5 16 16l8-4.5M16 16v9"
+            fill="none"
+            stroke="#3fc1e0"
+            stroke-width="1.3"
+            stroke-linejoin="round"
+            opacity="0.7"
+          />
+          <path
+            d="M8 11.5 16 7l8 4.5v9L16 25l-8-4.5z"
+            fill="none"
+            stroke="#7fe0f5"
+            stroke-width="1.4"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+      <div class="name">SAFETON</div>
+      <div class="claim"></div>
+      <div class="url">idtbas.github.io/Safeton</div>
+      <div class="note">
+        Alle Infrastruktur ist simuliert — es wird keine reale Hardware verbunden oder gesteuert.
+      </div>
+    </div>
+
+    <div id="ui" class="layer">
+      <div id="ripples"></div>
+      <svg id="cursor" viewBox="0 0 30 30">
+        <path
+          d="M5 3.2v20.6l5.6-5.3 3.6 8.3 3.7-1.6-3.6-8.1h7.9z"
+          fill="#fff"
+          stroke="#0b0d10"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <div id="keys"></div>
+    </div>
+
+    <div id="vignette" class="layer"></div>
+    <div id="grain" class="layer"></div>
+    <div id="fade" class="layer"></div>
+
+    <script>
+      const $ = (s) => document.querySelector(s);
+      const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+      const lerp = (a, b, p) => a + (b - a) * p;
+      const ease = {
+        out: (p) => 1 - Math.pow(1 - p, 3),
+        outExpo: (p) => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p)),
+        inOut: (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2),
+        in: (p) => p * p * p,
+      };
+      const prog = (t, t0, dur, fn = ease.out) => fn(clamp((t - t0) / dur));
+
+      // ---- Grain texture (generated once, shifted per frame) ----------------------------------
+      {
+        const c = document.createElement('canvas');
+        c.width = c.height = 256;
+        const g = c.getContext('2d');
+        const img = g.createImageData(256, 256);
+        let s = 1234567;
+        for (let i = 0; i < img.data.length; i += 4) {
+          s = (s * 1103515245 + 12345) & 0x7fffffff;
+          const v = (s >> 16) & 255;
+          img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+          img.data[i + 3] = 255;
+        }
+        g.putImageData(img, 0, 0);
+        $('#grain').style.backgroundImage = `url(${c.toDataURL()})`;
+      }
+
+      // ---- Titles -------------------------------------------------------------------------------
+      const titles = [];
+      function splitLines(lines) {
+        // "*text*" (may span several words) is set in the accent colour.
+        let accent = false;
+        return lines
+          .map((line) => {
+            const words = line.split(' ').map((w) => {
+              const open = w.startsWith('*');
+              const close = w.endsWith('*');
+              const txt = w.replace(/\*/g, '');
+              if (open) accent = true;
+              const html = `<span class="w${accent ? ' accent' : ''}">${txt}</span>`;
+              if (close) accent = false;
+              return html;
+            });
+            return `<span class="line">${words.join('<span class="w"> </span>')}</span>`;
+          })
+          .join('');
+      }
+      window.addTitle = (o) => {
+        const el = document.createElement('div');
+        if (o.kind === 'cap') {
+          el.className = 'cap';
+          el.innerHTML = `${o.kicker ? `<span class="num">${o.kicker}</span>` : ''}<span class="txt">${o.text}</span>`;
+        } else {
+          el.className = `title ${o.align === 'center' ? 'center' : ''}`;
+          el.innerHTML = `${o.kicker ? `<div class="kicker"><i></i><span>${o.kicker}</span></div>` : ''}<div class="head">${splitLines(o.lines)}</div>${o.sub ? `<div class="sub">${o.sub}</div>` : ''}`;
+          if (o.align !== 'center') el.style.left = `${o.x ?? 150}px`;
+          el.style.top = `${o.y ?? 360}px`;
+          if (o.size) el.querySelector('.head').style.fontSize = `${o.size}px`;
+        }
+        el.style.opacity = 0;
+        $('#titles').appendChild(el);
+        titles.push({ ...o, el, words: [...el.querySelectorAll('.w')] });
+      };
+      function renderTitles(t) {
+        for (const ti of titles) {
+          const { el, t0, t1 } = ti;
+          if (t < t0 - 0.1 || t > t1 + 0.1) {
+            el.style.opacity = 0;
+            continue;
+          }
+          const out = prog(t, t1 - 0.55, 0.55, ease.in);
+          if (ti.kind === 'cap') {
+            const p = prog(t, t0, 0.7, ease.outExpo);
+            el.style.opacity = p * (1 - out);
+            el.style.transform = `translate(-50%, ${-(1 - p) * 26 - out * 12}px) scale(${0.96 + 0.04 * p})`;
+            el.style.filter = `blur(${(1 - p) * 8 + out * 6}px)`;
+            continue;
+          }
+          el.style.opacity = 1 - out;
+          el.style.filter = out ? `blur(${out * 10}px)` : 'none';
+          el.style.transform = `translateY(${-out * 24}px)`;
+          const k = el.querySelector('.kicker');
+          if (k) {
+            const pk = prog(t, t0, 0.8, ease.outExpo);
+            k.style.opacity = pk;
+            k.querySelector('i').style.transform = `scaleX(${pk})`;
+          }
+          ti.words.forEach((w, i) => {
+            const p = prog(t, t0 + 0.12 + i * 0.055, 0.9, ease.outExpo);
+            w.style.transform = `translateY(${(1 - p) * 105}%)`;
+            w.style.opacity = clamp(p * 1.6);
+          });
+          const sub = el.querySelector('.sub');
+          if (sub) {
+            const ps = prog(t, t0 + 0.45 + ti.words.length * 0.055, 0.9, ease.outExpo);
+            sub.style.opacity = ps;
+            sub.style.transform = `translateY(${(1 - ps) * 18}px)`;
+          }
+        }
+      }
+
+      // ---- Chips --------------------------------------------------------------------------------
+      const chips = [];
+      window.addChip = (o) => {
+        const el = document.createElement('div');
+        el.className = 'chip';
+        el.innerHTML = `<b></b>${o.text}`;
+        el.style.opacity = 0;
+        $('#chips').appendChild(el);
+        chips.push({ ...o, el });
+      };
+      function renderChips(t) {
+        for (const c of chips) {
+          const p = prog(t, c.t0, 0.9, ease.outExpo);
+          const out = prog(t, c.t1 - 0.5, 0.5, ease.in);
+          const fy = Math.sin((t + c.phase) * 0.9) * 8;
+          const drift = (t - c.t0) * (c.vx ?? 0);
+          c.el.style.opacity = p * (1 - out);
+          c.el.style.transform = `translate(${c.x + drift}px, ${c.y + fy + (1 - p) * 40}px) scale(${0.9 + 0.1 * p})`;
+          c.el.style.filter = `blur(${(1 - p) * 10 + out * 8}px)`;
+        }
+      }
+
+      // ---- Screens ------------------------------------------------------------------------------
+      const W = 1536,
+        H = 864;
+      function placeScreen(id, s) {
+        const el = $(`#screen-${id}`);
+        const refl = $(`#refl-${id}`);
+        if (!s || s.opacity <= 0) {
+          el.style.visibility = 'hidden';
+          refl.style.visibility = 'hidden';
+          return;
+        }
+        el.style.visibility = 'visible';
+        const tf = `translate(960px, 540px) translate3d(${s.ox ?? 0}px, ${s.oy ?? 0}px, ${s.oz ?? 0}px) rotateX(${s.rx ?? 0}deg) rotateY(${s.ry ?? 0}deg) rotateZ(${s.rz ?? 0}deg) scale(${s.z}) translate(${-s.cx}px, ${-s.cy}px)`;
+        el.style.transform = tf;
+        el.style.opacity = s.opacity;
+        // Rounded corners appear as soon as the screen no longer fills the frame.
+        const fill = Math.min(s.z / 1.25, 1);
+        const r = clamp((1 - fill) * 6, 0, 1) * 22;
+        el.style.borderRadius = `${r / s.z}px`;
+        el.style.filter = s.blur > 0.05 ? `blur(${s.blur}px)` : 'none';
+        el.querySelector('.shade').style.opacity = s.dim ?? 0;
+        const glare = el.querySelector('.glare');
+        const tilt = Math.abs(s.rx ?? 0) + Math.abs(s.ry ?? 0);
+        glare.style.opacity = clamp(tilt / 18) * 0.9;
+        glare.style.backgroundPosition = `${(s.ry ?? 0) * 8}px 0`;
+        glare.style.backgroundSize = '200% 100%';
+        if (fill < 0.98) {
+          refl.style.visibility = 'visible';
+          refl.style.transform = tf + ` translate(0, ${H + 30}px) scaleY(0.35)`;
+          refl.style.opacity = clamp((1 - fill) * 3) * s.opacity * 0.9;
+        } else refl.style.visibility = 'hidden';
+      }
+
+      // ---- Intro / end ----------------------------------------------------------------------------
+      const tagText = 'Das Betriebssystem für KI-Rechenzentren.';
+      $('#intro .tag').innerHTML = tagText
+        .split(' ')
+        .map((w) => `<span class="w" style="display:inline-block">${w}&nbsp;</span>`)
+        .join('');
+      $('#end .claim').innerHTML = 'Simuliert. <span style="color:#7fe0f5">Nicht vereinfacht.</span>';
+      function renderIntro(st, t) {
+        const el = $('#intro');
+        if (!st) return void (el.style.display = 'none');
+        el.style.display = 'grid';
+        const t0 = st.t0;
+        const lt = t - t0;
+        const beamIn = prog(lt, 0.2, 1.1, ease.outExpo);
+        const beamOut = prog(lt, 1.3, 0.8, ease.inOut);
+        const beam = $('#intro .beam');
+        beam.style.transform = `scaleX(${beamIn * (1 - beamOut * 0.9)}) translateY(${beamOut * -0}px)`;
+        beam.style.opacity = beamIn * (1 - beamOut);
+        const draw = prog(lt, 1.0, 1.6, ease.inOut);
+        $('#intro .outer').style.strokeDasharray = '1 1';
+        $('#intro .outer').style.strokeDashoffset = 1 - draw;
+        const inner = prog(lt, 1.6, 1.2, ease.inOut);
+        $('#intro .inner').style.strokeDasharray = '1 1';
+        $('#intro .inner').style.strokeDashoffset = 1 - inner;
+        $('#intro .inner').style.opacity = 0.75;
+        $('#intro .top').style.opacity = prog(lt, 2.3, 0.9);
+        const mark = $('#intro .mark');
+        const ms = 0.92 + 0.08 * prog(lt, 1.0, 2.5);
+        // Match cut: the mark travels into the boot screen's logo.
+        const mc = prog(lt, st.cut, 0.9, ease.inOut);
+        const toScale = st.cutScale ?? 0.6;
+        mark.style.transform = `translateY(${lerp(0, st.cutY ?? 0, mc)}px) scale(${lerp(ms, toScale, mc)})`;
+        mark.style.opacity = 1 - prog(lt, st.cut + 0.55, 0.45);
+        const word = $('#intro .word');
+        const pw = prog(lt, 2.1, 1.6, ease.outExpo);
+        word.style.opacity = pw * (1 - prog(lt, st.cut - 0.2, 0.5));
+        word.style.letterSpacing = `${lerp(0.62, 0.34, pw)}em`;
+        word.style.filter = `blur(${(1 - pw) * 12}px)`;
+        $('#intro .tag')
+          .querySelectorAll('.w')
+          .forEach((w, i) => {
+            const p = prog(lt, 3.0 + i * 0.08, 0.9, ease.outExpo);
+            w.style.opacity = p * (1 - prog(lt, st.cut - 0.25, 0.5));
+            w.style.transform = `translateY(${(1 - p) * 16}px)`;
+            w.style.filter = `blur(${(1 - p) * 6}px)`;
+          });
+      }
+      function renderEnd(st, t) {
+        const el = $('#end');
+        if (!st) return void (el.style.opacity = 0);
+        const lt = t - st.t0;
+        el.style.opacity = 1;
+        const items = [
+          ['.mark', 0.0],
+          ['.name', 0.35],
+          ['.claim', 0.8],
+          ['.url', 1.4],
+          ['.note', 1.9],
+        ];
+        for (const [sel, d] of items) {
+          const n = $(`#end ${sel}`);
+          const p = prog(lt, d, 1.2, ease.outExpo);
+          n.style.opacity = p;
+          const base = sel === '.url' ? 'translateX(-50%) ' : '';
+          n.style.transform = `${base}translateY(${(1 - p) * 26}px)`;
+          n.style.filter = `blur(${(1 - p) * 10}px)`;
+        }
+        $('#end .name').style.letterSpacing = `${lerp(0.5, 0.32, prog(lt, 0.35, 1.6, ease.outExpo))}em`;
+      }
+
+      // ---- Frame --------------------------------------------------------------------------------
+      let rippleEls = [];
+      window.renderFrame = (s) => {
+        const t = s.t;
+        // Background drift
+        const g = document.querySelectorAll('#bg .glow');
+        g[0].style.transform = `translate(${-260 + Math.sin(t * 0.13) * 160}px, ${-420 + Math.cos(t * 0.11) * 90}px)`;
+        g[1].style.transform = `translate(${980 + Math.cos(t * 0.09) * 180}px, ${200 + Math.sin(t * 0.12) * 120}px)`;
+        g[2].style.transform = `translate(${300 + Math.sin(t * 0.07 + 1) * 220}px, ${380 + Math.cos(t * 0.1) * 80}px)`;
+        $('#bg').style.opacity = s.bg ?? 1;
+        $('#floor').style.opacity = s.floor ?? 0;
+        $('#floor').style.backgroundPosition = `0 ${t * 24}px`;
+
+        placeScreen('a', s.a);
+        placeScreen('b', s.b);
+        renderTitles(t);
+        renderChips(t);
+        renderIntro(s.intro, t);
+        renderEnd(s.end, t);
+
+        // Cursor
+        const c = s.cursor;
+        const cur = $('#cursor');
+        if (c && c.vis > 0) {
+          cur.style.display = 'block';
+          cur.style.opacity = c.vis;
+          const sc = (c.scale ?? 1) * (c.press ? 0.86 : 1);
+          cur.style.transform = `translate(${c.x - 5 * sc}px, ${c.y - 3 * sc}px) scale(${sc})`;
+        } else cur.style.display = 'none';
+        // Ripples
+        const holder = $('#ripples');
+        while (rippleEls.length < (s.ripples?.length ?? 0)) {
+          const r = document.createElement('div');
+          r.className = 'ripple';
+          holder.appendChild(r);
+          rippleEls.push(r);
+        }
+        rippleEls.forEach((r, i) => {
+          const rp = s.ripples?.[i];
+          if (!rp) return void (r.style.display = 'none');
+          const p = clamp(rp.age / 0.55);
+          r.style.display = 'block';
+          r.style.left = `${rp.x}px`;
+          r.style.top = `${rp.y}px`;
+          r.style.transform = `scale(${0.2 + ease.out(p) * 1.1 * (rp.scale ?? 1)})`;
+          r.style.opacity = (1 - p) * 0.9;
+        });
+        // Keys HUD
+        const keys = $('#keys');
+        if (s.keys && s.keys.alpha > 0) {
+          if (keys.dataset.k !== s.keys.text) {
+            keys.dataset.k = s.keys.text;
+            keys.innerHTML = s.keys.text
+              .split('+')
+              .map((k) => `<kbd>${k}</kbd>`)
+              .join('');
+          }
+          keys.style.display = 'flex';
+          keys.style.left = `${s.keys.x ?? 960}px`;
+          keys.style.top = `${s.keys.y ?? 540}px`;
+          const p = s.keys.alpha;
+          keys.style.opacity = p;
+          keys.style.transform = `translate(-50%, -50%) scale(${0.9 + 0.1 * p * (s.keys.press ? 0.96 : 1)})`;
+        } else keys.style.display = 'none';
+
+        $('#grain').style.backgroundPosition = `${(t * 7919) % 256}px ${(t * 104729) % 256}px`;
+        $('#fade').style.opacity = s.fade ?? 0;
+      };
+
+      // ---- Element lookup inside a screen (stage coordinates) -------------------------------------
+      window.find = (frameId, q) => {
+        const doc = $(`#${frameId}`).contentDocument;
+        if (!doc) return null;
+        if (q.field) {
+          const lab = [...doc.querySelectorAll('label')].find((l) => l.textContent.trim() === q.field);
+          const ctl = lab && (doc.getElementById(lab.htmlFor) ?? lab.querySelector('input,select,textarea'));
+          if (!ctl) return null;
+          const r = ctl.getBoundingClientRect();
+          return {
+            x: r.left,
+            y: r.top,
+            w: r.width,
+            h: r.height,
+            cx: r.left + r.width / 2,
+            cy: r.top + r.height / 2,
+          };
+        }
+        let list = [...doc.querySelectorAll(q.sel ?? '*')];
+        if (q.label) list = list.filter((e) => e.getAttribute('aria-label') === q.label);
+        if (q.text) {
+          const re = q.text instanceof RegExp ? q.text : null;
+          list = list.filter((e) => {
+            const tx = (e.textContent ?? '').trim();
+            return re ? re.test(tx) : q.exact ? tx === q.text : tx.includes(q.text);
+          });
+        }
+        if (q.re) {
+          const re = new RegExp(q.re);
+          list = list.filter((e) => re.test((e.textContent ?? '').trim()));
+        }
+        list = list.filter((e) => {
+          const r = e.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        });
+        const el = list[q.nth ?? (q.last ? list.length - 1 : 0)];
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return {
+          x: r.left,
+          y: r.top,
+          w: r.width,
+          h: r.height,
+          cx: r.left + r.width / 2,
+          cy: r.top + r.height / 2,
+        };
+      };
+    </script>
+  </body>
+</html>
