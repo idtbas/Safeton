@@ -8,7 +8,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 export const DB_NAME = 'safeton';
 export const DB_VERSION = 1;
 
-export type DocKey = 'settings' | 'infra' | 'sim-state' | 'meta';
+export type DocKey = 'settings' | 'infra' | 'sim-state' | 'meta' | 'account' | 'setup';
 
 export interface StoredDoc<T = unknown> {
   key: DocKey;

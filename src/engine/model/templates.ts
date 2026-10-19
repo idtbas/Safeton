@@ -201,7 +201,20 @@ export interface InfraTemplate {
   name: string;
   tier: string;
   summary: string;
+  /** Editable design input; `build()` sizes the facility around it. */
+  input: () => DesignInput;
   build: () => InfraSpec;
+}
+
+function template(t: Omit<InfraTemplate, 'build' | 'input'> & { design: () => DesignInput }): InfraTemplate {
+  return {
+    id: t.id,
+    name: t.name,
+    tier: t.tier,
+    summary: t.summary,
+    input: t.design,
+    build: () => designInfrastructure(t.design()),
+  };
 }
 
 const FRANKFURT = {
@@ -212,185 +225,248 @@ const FRANKFURT = {
 };
 
 export const TEMPLATES: readonly InfraTemplate[] = [
-  {
+  template({
     id: 'single-server',
     name: 'Single AI Server',
     tier: 'Server',
     summary: '1 × HGX H100 8-GPU in a lab rack, air cooled, no backend fabric',
-    build: () =>
-      designInfrastructure({
-        id: 'single-server',
-        name: 'Single AI Server',
-        description: 'One HGX H100 8-GPU system in a 42U lab rack with local storage and an NFS appliance.',
-        templateId: 'single-server',
-        site: {
-          name: 'Engineering Lab',
-          code: 'MUC-LAB',
-          city: 'München',
-          country: 'DE',
-          climate: { annualMeanC: 9.5, seasonalAmplitudeC: 9.5, diurnalAmplitudeC: 5 },
-          energyPriceEurPerKWh: 0.2,
-        },
-        compute: {
-          system: { kind: 'platform', platformId: 'hgx-h100-8gpu', nodesPerRack: 1 },
-          racks: 1,
-          rackId: 'rack-42u-600',
-          cooling: 'air',
-          pdu: { pduId: 'pdu-3ph-415v-32a', perFeed: 1, feeds: 2 },
-        },
-        halls: 1,
-        racksPerRow: 8,
-        fabric: { topology: 'none', switchId: 'nvidia-qm9700', oversubscription: 1 },
-        storage: { systemId: 'generic-flash-nfs-node', count: 1 },
-      }),
-  },
-  {
+    design: () => ({
+      id: 'single-server',
+      name: 'Single AI Server',
+      description: 'One HGX H100 8-GPU system in a 42U lab rack with local storage and an NFS appliance.',
+      templateId: 'single-server',
+      site: {
+        name: 'Engineering Lab',
+        code: 'MUC-LAB',
+        city: 'München',
+        country: 'DE',
+        climate: { annualMeanC: 9.5, seasonalAmplitudeC: 9.5, diurnalAmplitudeC: 5 },
+        energyPriceEurPerKWh: 0.2,
+      },
+      compute: {
+        system: { kind: 'platform', platformId: 'hgx-h100-8gpu', nodesPerRack: 1 },
+        racks: 1,
+        rackId: 'rack-42u-600',
+        cooling: 'air',
+        pdu: { pduId: 'pdu-3ph-415v-32a', perFeed: 1, feeds: 2 },
+      },
+      halls: 1,
+      racksPerRow: 8,
+      fabric: { topology: 'none', switchId: 'nvidia-qm9700', oversubscription: 1 },
+      storage: { systemId: 'generic-flash-nfs-node', count: 1 },
+    }),
+  }),
+  template({
     id: 'gpu-rack',
     name: 'GPU Rack',
     tier: 'Rack',
     summary: '4 × HGX H200 (32 GPUs), rear-door cooled, single NDR switch',
-    build: () =>
-      designInfrastructure({
-        id: 'gpu-rack',
-        name: 'GPU Rack',
-        description:
-          'Four HGX H200 systems in one 48U rack with an active rear-door heat exchanger and one Quantum-2 switch.',
-        templateId: 'gpu-rack',
-        site: { name: 'Colocation Suite', code: 'FRA-C4', ...FRANKFURT },
-        compute: {
-          system: { kind: 'platform', platformId: 'hgx-h200-8gpu', nodesPerRack: 4 },
-          racks: 1,
-          rackId: 'rack-48u-800',
-          cooling: 'rdhx',
-          pdu: { pduId: 'pdu-3ph-415v-60a', perFeed: 2, feeds: 2 },
-        },
-        halls: 1,
-        racksPerRow: 8,
-        fabric: { topology: 'fat-tree', switchId: 'nvidia-qm9700', oversubscription: 1 },
-        storage: { systemId: 'generic-flash-nfs-node', count: 2 },
-      }),
-  },
-  {
+    design: () => ({
+      id: 'gpu-rack',
+      name: 'GPU Rack',
+      description:
+        'Four HGX H200 systems in one 48U rack with an active rear-door heat exchanger and one Quantum-2 switch.',
+      templateId: 'gpu-rack',
+      site: { name: 'Colocation Suite', code: 'FRA-C4', ...FRANKFURT },
+      compute: {
+        system: { kind: 'platform', platformId: 'hgx-h200-8gpu', nodesPerRack: 4 },
+        racks: 1,
+        rackId: 'rack-48u-800',
+        cooling: 'rdhx',
+        pdu: { pduId: 'pdu-3ph-415v-60a', perFeed: 2, feeds: 2 },
+      },
+      halls: 1,
+      racksPerRow: 8,
+      fabric: { topology: 'fat-tree', switchId: 'nvidia-qm9700', oversubscription: 1 },
+      storage: { systemId: 'generic-flash-nfs-node', count: 2 },
+    }),
+  }),
+  template({
     id: 'cluster-256',
     name: 'GPU Cluster 256',
     tier: 'Cluster',
     summary: '32 × HGX H100 (256 GPUs), rail-optimized NDR fabric, Lustre storage',
-    build: () =>
-      designInfrastructure({
-        id: 'cluster-256',
-        name: 'GPU Cluster 256',
-        description: 'One scalable unit: 32 HGX H100 systems, 8-rail NDR InfiniBand, two AI400X2 appliances.',
-        templateId: 'cluster-256',
-        site: { name: 'Frankfurt Campus', code: 'FRA1', ...FRANKFURT },
-        compute: {
-          system: { kind: 'platform', platformId: 'hgx-h100-8gpu', nodesPerRack: 4 },
-          racks: 8,
-          rackId: 'rack-48u-800',
-          cooling: 'rdhx',
-          pdu: { pduId: 'pdu-3ph-415v-60a', perFeed: 2, feeds: 2 },
-        },
-        halls: 1,
-        racksPerRow: 8,
-        fabric: { topology: 'rail-optimized', switchId: 'nvidia-qm9700', oversubscription: 1 },
-        storage: { systemId: 'ddn-ai400x2', count: 2 },
-      }),
-  },
-  {
+    design: () => ({
+      id: 'cluster-256',
+      name: 'GPU Cluster 256',
+      description: 'One scalable unit: 32 HGX H100 systems, 8-rail NDR InfiniBand, two AI400X2 appliances.',
+      templateId: 'cluster-256',
+      site: { name: 'Frankfurt Campus', code: 'FRA1', ...FRANKFURT },
+      compute: {
+        system: { kind: 'platform', platformId: 'hgx-h100-8gpu', nodesPerRack: 4 },
+        racks: 8,
+        rackId: 'rack-48u-800',
+        cooling: 'rdhx',
+        pdu: { pduId: 'pdu-3ph-415v-60a', perFeed: 2, feeds: 2 },
+      },
+      halls: 1,
+      racksPerRow: 8,
+      fabric: { topology: 'rail-optimized', switchId: 'nvidia-qm9700', oversubscription: 1 },
+      storage: { systemId: 'ddn-ai400x2', count: 2 },
+    }),
+  }),
+  template({
     id: 'enterprise-4096',
     name: 'Enterprise AI Data Center',
     tier: 'Enterprise',
     summary: '512 × HGX H200 (4 096 GPUs), two halls, 2-tier NDR fat-tree per rail',
-    build: () =>
-      designInfrastructure({
-        id: 'enterprise-4096',
-        name: 'Enterprise AI Data Center',
-        description:
-          '512 HGX H200 systems in two data halls, rail-optimized non-blocking NDR fabric, 8 AI400X2.',
-        templateId: 'enterprise-4096',
-        site: { name: 'Frankfurt Campus', code: 'FRA2', ...FRANKFURT },
-        compute: {
-          system: { kind: 'platform', platformId: 'hgx-h200-8gpu', nodesPerRack: 4 },
-          racks: 128,
-          rackId: 'rack-48u-800',
-          cooling: 'rdhx',
-          pdu: { pduId: 'pdu-3ph-415v-60a', perFeed: 2, feeds: 2 },
-        },
-        halls: 2,
-        racksPerRow: 16,
-        fabric: { topology: 'rail-optimized', switchId: 'nvidia-qm9700', oversubscription: 1 },
-        storage: { systemId: 'ddn-ai400x2', count: 8 },
-      }),
-  },
-  {
+    design: () => ({
+      id: 'enterprise-4096',
+      name: 'Enterprise AI Data Center',
+      description:
+        '512 HGX H200 systems in two data halls, rail-optimized non-blocking NDR fabric, 8 AI400X2.',
+      templateId: 'enterprise-4096',
+      site: { name: 'Frankfurt Campus', code: 'FRA2', ...FRANKFURT },
+      compute: {
+        system: { kind: 'platform', platformId: 'hgx-h200-8gpu', nodesPerRack: 4 },
+        racks: 128,
+        rackId: 'rack-48u-800',
+        cooling: 'rdhx',
+        pdu: { pduId: 'pdu-3ph-415v-60a', perFeed: 2, feeds: 2 },
+      },
+      halls: 2,
+      racksPerRow: 16,
+      fabric: { topology: 'rail-optimized', switchId: 'nvidia-qm9700', oversubscription: 1 },
+      storage: { systemId: 'ddn-ai400x2', count: 8 },
+    }),
+  }),
+  template({
     id: 'supercomputer-nvl72',
     name: 'NVL72 AI Supercomputer',
     tier: 'Supercomputer',
     summary: '64 × GB200 NVL72 (4 608 GPUs), direct liquid cooling, Nordic site',
-    build: () =>
-      designInfrastructure({
-        id: 'supercomputer-nvl72',
-        name: 'NVL72 AI Supercomputer',
-        description:
-          '64 GB200 NVL72 racks (72-GPU NVLink domains), warm-water DLC with dry coolers, 4-rail NDR fabric.',
-        templateId: 'supercomputer-nvl72',
-        site: {
-          name: 'Nordic Compute Campus',
-          code: 'LLA1',
-          city: 'Luleå',
-          country: 'SE',
-          climate: { annualMeanC: 2, seasonalAmplitudeC: 11.5, diurnalAmplitudeC: 4 },
-          energyPriceEurPerKWh: 0.06,
-        },
-        compute: {
-          system: { kind: 'rack-system', rackSystemId: 'gb200-nvl72' },
-          racks: 64,
-          rackId: 'rack-mgx-48u',
-          cooling: 'dlc',
-          pdu: { pduId: 'pdu-3ph-415v-125a', perFeed: 2, feeds: 2 },
-        },
-        halls: 2,
-        racksPerRow: 16,
-        fabric: { topology: 'rail-optimized', switchId: 'nvidia-qm9700', oversubscription: 1 },
-        storage: { systemId: 'ddn-ai400x2', count: 16 },
-      }),
-  },
-  {
+    design: () => ({
+      id: 'supercomputer-nvl72',
+      name: 'NVL72 AI Supercomputer',
+      description:
+        '64 GB200 NVL72 racks (72-GPU NVLink domains), warm-water DLC with dry coolers, 4-rail NDR fabric.',
+      templateId: 'supercomputer-nvl72',
+      site: {
+        name: 'Nordic Compute Campus',
+        code: 'LLA1',
+        city: 'Luleå',
+        country: 'SE',
+        climate: { annualMeanC: 2, seasonalAmplitudeC: 11.5, diurnalAmplitudeC: 4 },
+        energyPriceEurPerKWh: 0.06,
+      },
+      compute: {
+        system: { kind: 'rack-system', rackSystemId: 'gb200-nvl72' },
+        racks: 64,
+        rackId: 'rack-mgx-48u',
+        cooling: 'dlc',
+        pdu: { pduId: 'pdu-3ph-415v-125a', perFeed: 2, feeds: 2 },
+      },
+      halls: 2,
+      racksPerRow: 16,
+      fabric: { topology: 'rail-optimized', switchId: 'nvidia-qm9700', oversubscription: 1 },
+      storage: { systemId: 'ddn-ai400x2', count: 16 },
+    }),
+  }),
+  template({
     id: 'hyperscale-32k',
     name: 'Hyperscale AI Campus',
     tier: 'Hyperscale',
     summary: '4 096 × HGX B200 (32 768 GPUs), DLC, 800G XDR fabric, four halls',
-    build: () =>
-      designInfrastructure({
-        id: 'hyperscale-32k',
-        name: 'Hyperscale AI Campus',
-        description:
-          '4 096 liquid-cooled HGX B200 systems with ConnectX-8, rail-optimized Quantum-X800 fabric, 64 AI400X2.',
-        templateId: 'hyperscale-32k',
-        site: {
-          name: 'Dallas–Fort Worth Campus',
-          code: 'DFW1',
-          city: 'Dallas',
-          country: 'US',
-          climate: { annualMeanC: 19, seasonalAmplitudeC: 10, diurnalAmplitudeC: 6 },
-          energyPriceEurPerKWh: 0.065,
+    design: () => ({
+      id: 'hyperscale-32k',
+      name: 'Hyperscale AI Campus',
+      description:
+        '4 096 liquid-cooled HGX B200 systems with ConnectX-8, rail-optimized Quantum-X800 fabric, 64 AI400X2.',
+      templateId: 'hyperscale-32k',
+      site: {
+        name: 'Dallas–Fort Worth Campus',
+        code: 'DFW1',
+        city: 'Dallas',
+        country: 'US',
+        climate: { annualMeanC: 19, seasonalAmplitudeC: 10, diurnalAmplitudeC: 6 },
+        energyPriceEurPerKWh: 0.065,
+      },
+      compute: {
+        system: {
+          kind: 'platform',
+          platformId: 'hgx-b200-8gpu',
+          nodesPerRack: 4,
+          overrides: { computeNicId: 'nvidia-cx8-xdr' },
         },
-        compute: {
-          system: {
-            kind: 'platform',
-            platformId: 'hgx-b200-8gpu',
-            nodesPerRack: 4,
-            overrides: { computeNicId: 'nvidia-cx8-xdr' },
-          },
-          racks: 1024,
-          rackId: 'rack-48u-800',
-          cooling: 'dlc',
-          pdu: { pduId: 'pdu-3ph-415v-60a', perFeed: 2, feeds: 2 },
-        },
-        halls: 4,
-        racksPerRow: 32,
-        fabric: { topology: 'rail-optimized', switchId: 'nvidia-q3400', oversubscription: 1 },
-        storage: { systemId: 'ddn-ai400x2', count: 64 },
-      }),
+        racks: 1024,
+        rackId: 'rack-48u-800',
+        cooling: 'dlc',
+        pdu: { pduId: 'pdu-3ph-415v-60a', perFeed: 2, feeds: 2 },
+      },
+      halls: 4,
+      racksPerRow: 32,
+      fabric: { topology: 'rail-optimized', switchId: 'nvidia-q3400', oversubscription: 1 },
+      storage: { systemId: 'ddn-ai400x2', count: 64 },
+    }),
+  }),
+];
+
+export interface ClimatePreset {
+  id: string;
+  city: string;
+  country: string;
+  climate: { annualMeanC: number; seasonalAmplitudeC: number; diurnalAmplitudeC: number };
+  /** Typical industrial electricity price (estimate). */
+  energyPriceEurPerKWh: number;
+}
+
+/** Representative site climates (normals rounded; prices are order-of-magnitude estimates). */
+export const CLIMATE_PRESETS: readonly ClimatePreset[] = [
+  {
+    id: 'frankfurt',
+    city: 'Frankfurt am Main',
+    country: 'DE',
+    climate: { annualMeanC: 10.5, seasonalAmplitudeC: 9.5, diurnalAmplitudeC: 4.5 },
+    energyPriceEurPerKWh: 0.18,
+  },
+  {
+    id: 'munich',
+    city: 'München',
+    country: 'DE',
+    climate: { annualMeanC: 9.5, seasonalAmplitudeC: 9.5, diurnalAmplitudeC: 5 },
+    energyPriceEurPerKWh: 0.2,
+  },
+  {
+    id: 'dublin',
+    city: 'Dublin',
+    country: 'IE',
+    climate: { annualMeanC: 10, seasonalAmplitudeC: 5, diurnalAmplitudeC: 4 },
+    energyPriceEurPerKWh: 0.21,
+  },
+  {
+    id: 'lulea',
+    city: 'Luleå',
+    country: 'SE',
+    climate: { annualMeanC: 2, seasonalAmplitudeC: 11.5, diurnalAmplitudeC: 4 },
+    energyPriceEurPerKWh: 0.06,
+  },
+  {
+    id: 'ashburn',
+    city: 'Ashburn, Virginia',
+    country: 'US',
+    climate: { annualMeanC: 13.5, seasonalAmplitudeC: 11, diurnalAmplitudeC: 6 },
+    energyPriceEurPerKWh: 0.08,
+  },
+  {
+    id: 'dallas',
+    city: 'Dallas',
+    country: 'US',
+    climate: { annualMeanC: 19, seasonalAmplitudeC: 10, diurnalAmplitudeC: 6 },
+    energyPriceEurPerKWh: 0.065,
+  },
+  {
+    id: 'phoenix',
+    city: 'Phoenix',
+    country: 'US',
+    climate: { annualMeanC: 23.5, seasonalAmplitudeC: 10.5, diurnalAmplitudeC: 8 },
+    energyPriceEurPerKWh: 0.075,
+  },
+  {
+    id: 'singapore',
+    city: 'Singapore',
+    country: 'SG',
+    climate: { annualMeanC: 27.5, seasonalAmplitudeC: 1, diurnalAmplitudeC: 3.5 },
+    energyPriceEurPerKWh: 0.2,
   },
 ];
 

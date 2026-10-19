@@ -11,9 +11,19 @@ export type {
   NodeOverrides,
   RackCooling,
   Redundancy,
+  FabricTopology,
+  RackSystemRef,
 } from './model/spec';
 export { INFRA_SPEC_VERSION } from './model/spec';
-export { TEMPLATES, buildTemplate, designInfrastructure, type InfraTemplate } from './model/templates';
+export {
+  TEMPLATES,
+  CLIMATE_PRESETS,
+  buildTemplate,
+  designInfrastructure,
+  type InfraTemplate,
+  type DesignInput,
+  type ClimatePreset,
+} from './model/templates';
 export { validateInfra, type ValidationIssue, type ValidationReport } from './model/validate';
 export { expandTopology, type Topology } from './model/topology';
 export { deriveMetrics, type DerivedMetrics } from './model/derive';

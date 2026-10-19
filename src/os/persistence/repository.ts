@@ -10,7 +10,15 @@ import {
   type InfraSpec,
   type SimStateBlob,
 } from '../../engine';
-import { SETTINGS_SCHEMA_VERSION, defaultSettings, settingsSchema, type Settings } from '../settings/schema';
+import { ACCOUNT_SCHEMA_VERSION, accountSchema, type Account } from '../auth/credentials';
+import {
+  SETTINGS_SCHEMA_VERSION,
+  defaultSettings,
+  migrateSettingsV1toV2,
+  settingsSchema,
+  type Settings,
+} from '../settings/schema';
+import { SETUP_DRAFT_VERSION, setupDraftSchema, type SetupDraft } from '../setup/model';
 import { decodeJson, encodeJson } from './codec';
 import {
   EXPORT_FORMAT,
@@ -27,6 +35,8 @@ export const CURRENT_VERSIONS: Record<DocKey, number> = {
   infra: INFRA_SPEC_VERSION,
   'sim-state': SIM_STATE_VERSION,
   meta: 1,
+  account: ACCOUNT_SCHEMA_VERSION,
+  setup: SETUP_DRAFT_VERSION,
 };
 
 type Migration = (data: unknown) => unknown;
@@ -35,10 +45,12 @@ type Migration = (data: unknown) => unknown;
  * Version 1 is the first released schema; future schema changes add entries here.
  */
 export const MIGRATIONS: Record<DocKey, Record<number, Migration>> = {
-  settings: {},
+  settings: { 1: migrateSettingsV1toV2 },
   infra: {},
   'sim-state': {},
   meta: {},
+  account: {},
+  setup: {},
 };
 
 export function migrate(key: DocKey, doc: StoredDoc): unknown {
@@ -66,8 +78,9 @@ export interface ExportBundle {
   format: typeof EXPORT_FORMAT;
   version: number;
   exportedAt: string;
-  app: { version: string };
+  app: { version: string; settingsVersion?: number };
   settings?: Settings;
+  account?: Account;
   infra?: InfraSpec;
   simState?: SimStateBlob;
 }
@@ -121,6 +134,26 @@ export class Repository {
     return this.store.put('sim-state', CURRENT_VERSIONS['sim-state'], state);
   }
 
+  loadAccount(): Promise<LoadResult<Account>> {
+    return this.loadDoc('account', (d) => accountSchema.parse(d));
+  }
+
+  saveAccount(account: Account): Promise<void> {
+    return this.store.put('account', CURRENT_VERSIONS.account, accountSchema.parse(account));
+  }
+
+  loadSetupDraft(): Promise<LoadResult<SetupDraft>> {
+    return this.loadDoc('setup', (d) => setupDraftSchema.parse(d) as SetupDraft);
+  }
+
+  saveSetupDraft(draft: SetupDraft): Promise<void> {
+    return this.store.put('setup', CURRENT_VERSIONS.setup, draft);
+  }
+
+  clearSetupDraft(): Promise<void> {
+    return this.store.delete('setup');
+  }
+
   async clearSimulation(): Promise<void> {
     await this.store.delete('sim-state');
     await this.store.delete('infra');
@@ -133,12 +166,14 @@ export class Repository {
   async exportBundle(appVersion: string, simState: SimStateBlob | null): Promise<string> {
     const settings = (await this.loadSettings()).value ?? defaultSettings();
     const infra = (await this.loadInfra()).value;
+    const account = (await this.loadAccount()).value;
     const bundle: ExportBundle = {
       format: EXPORT_FORMAT,
       version: EXPORT_VERSION,
       exportedAt: new Date().toISOString(),
-      app: { version: appVersion },
+      app: { version: appVersion, settingsVersion: SETTINGS_SCHEMA_VERSION },
       settings,
+      ...(account ? { account } : {}),
       ...(infra ? { infra } : {}),
       ...(simState ? { simState } : {}),
     };
@@ -163,7 +198,17 @@ export class Repository {
       exportedAt: envelope.data.exportedAt,
       app: { version: String(envelope.data.app.version) },
     };
-    if (envelope.data.settings !== undefined) out.settings = settingsSchema.parse(envelope.data.settings);
+    if (envelope.data.settings !== undefined) {
+      // Exports from older versions carry older settings; migrate via the settings migrations.
+      const migrated = migrate('settings', {
+        key: 'settings',
+        schemaVersion: Number((envelope.data.app as { settingsVersion?: number }).settingsVersion ?? 1),
+        savedAt: '',
+        data: envelope.data.settings,
+      });
+      out.settings = settingsSchema.parse(migrated);
+    }
+    if (envelope.data.account !== undefined) out.account = accountSchema.parse(envelope.data.account);
     if (envelope.data.infra !== undefined) {
       const spec = infraSpecSchema.parse(envelope.data.infra) as InfraSpec;
       const report = validateInfra(spec);
@@ -184,6 +229,7 @@ export class Repository {
 
   async importBundle(bundle: ExportBundle): Promise<void> {
     if (bundle.settings) await this.saveSettings(bundle.settings);
+    if (bundle.account) await this.saveAccount(bundle.account);
     if (bundle.infra) await this.saveInfra(bundle.infra);
     if (bundle.simState) await this.saveSimState(bundle.simState);
     else if (bundle.infra) await this.store.delete('sim-state');

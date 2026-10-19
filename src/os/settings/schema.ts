@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 
-export const SETTINGS_SCHEMA_VERSION = 1;
+export const SETTINGS_SCHEMA_VERSION = 2;
 
 export const ACCENTS = {
   cyan: { hue: 195, label: 'Cyan' },
@@ -44,6 +44,30 @@ export const settingsSchema = z.object({
       autoSaveIntervalS: z.number().int().min(5).max(600).default(20),
       startRunning: z.boolean().default(true),
       defaultTemplate: z.string().default('cluster-256'),
+      /** v2: global telemetry sampling interval (simulated seconds). */
+      telemetryIntervalS: z.number().int().min(1).max(60).default(5),
+      /** v2: warm = nodes already running; cold = every node powers on through POST at boot. */
+      startMode: z.enum(['warm', 'cold']).default('warm'),
+      /** v2: fraction of nodes that must be online before a cold boot hands over to login. */
+      bootMinCapacity: z.number().min(0).max(1).default(0.9),
+    })
+    .prefault({}),
+  /** v2: alert thresholds evaluated by the kernel against live telemetry. */
+  monitoring: z
+    .object({
+      gpuTempWarnC: z.number().min(50).max(110).default(85),
+      gpuTempCritC: z.number().min(50).max(120).default(90),
+      hallSupplyWarnC: z.number().min(15).max(40).default(27),
+      pueWarn: z.number().min(1).max(3).default(1.4),
+    })
+    .prefault({}),
+  /** v2: session and administrative safeguards. */
+  security: z
+    .object({
+      /** Minutes of inactivity before the session locks (0 = never). */
+      sessionTimeoutMin: z.number().int().min(0).max(240).default(30),
+      lockScreen: z.boolean().default(true),
+      confirmCritical: z.boolean().default(true),
     })
     .prefault({}),
   notifications: z
@@ -63,12 +87,29 @@ export const settingsSchema = z.object({
     .object({
       hostname: z.string().min(1).max(63).default('safeton-ops-01'),
       operator: z.string().min(1).max(64).default('admin'),
+      /** v2: display name of the administrator configured during setup. */
+      operatorName: z.string().max(80).default(''),
       setupComplete: z.boolean().default(false),
     })
     .prefault({}),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
+
+/**
+ * v1 → v2: adds monitoring thresholds, security options, telemetry interval, start mode and the
+ * operator display name. Existing values are kept; new sections receive their defaults.
+ */
+export function migrateSettingsV1toV2(data: unknown): unknown {
+  const d = (data ?? {}) as Record<string, Record<string, unknown> | undefined>;
+  return {
+    ...d,
+    simulation: { telemetryIntervalS: 5, startMode: 'warm', bootMinCapacity: 0.9, ...d.simulation },
+    monitoring: { gpuTempWarnC: 85, gpuTempCritC: 90, hallSupplyWarnC: 27, pueWarn: 1.4, ...d.monitoring },
+    security: { sessionTimeoutMin: 30, lockScreen: true, confirmCritical: true, ...d.security },
+    system: { operatorName: '', ...d.system },
+  };
+}
 
 export function defaultSettings(): Settings {
   return settingsSchema.parse({});
